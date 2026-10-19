@@ -5,9 +5,9 @@ cmake_minimum_required(VERSION 3.14)
 set(PROJECT_NAME "pcm_asr")
 project(${PROJECT_NAME} LANGUAGES C CXX)
 
-# whisper.cpp + ggml (static, x64 AVX2, CPU only) and the C shim, built into
-# pcm_asr_whisper.dll by ../src/CMakeLists.txt. Run ../tool/fetch_whisper_cpp.sh
-# (Git Bash) before the first build.
+# whisper.cpp + ggml (static; Vulkan when the SDK is present, else CPU) and the
+# C shim, built into pcm_asr_whisper.dll by ../src/CMakeLists.txt, which fetches
+# the pinned whisper.cpp sources itself when ../third_party/whisper.cpp is absent.
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DIR}/s")
 
 # Note: `flutter run` (Debug) builds this unoptimized (/Od /RTC1) and whisper

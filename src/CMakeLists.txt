@@ -6,12 +6,41 @@ cmake_minimum_required(VERSION 3.14)
 
 project(pcm_asr_whisper_library VERSION 0.0.1 LANGUAGES C CXX)
 
+# whisper.cpp sources: third_party/whisper.cpp when present (tool/fetch_whisper_cpp.*),
+# otherwise fetched here at configure time, pinned by tag and SHA-256.
+set(PAW_WHISPER_TAG "v1.9.5")
+set(PAW_WHISPER_SHA256 "ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720")
 set(PAW_WHISPER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/whisper.cpp"
     CACHE PATH "whisper.cpp source tree")
+
+# Windows: keep whisper's download and build directories short and outside
+# the app's build tree. ggml's Vulkan shader generator nests an ExternalProject
+# whose MSBuild probe files exceed MAX_PATH from a Flutter build directory
+# (…\build\windows\x64\plugins\pcm_asr\…). PCM_ASR_WORK overrides the place
+# (default %LOCALAPPDATA%\pcm_asr).
+if (WIN32)
+  if (DEFINED ENV{PCM_ASR_WORK} AND NOT "$ENV{PCM_ASR_WORK}" STREQUAL "")
+    file(TO_CMAKE_PATH "$ENV{PCM_ASR_WORK}" PAW_WORK)
+  else()
+    file(TO_CMAKE_PATH "$ENV{LOCALAPPDATA}/pcm_asr" PAW_WORK)
+  endif()
+  string(MD5 _paw_hash "${CMAKE_BINARY_DIR}")
+  string(SUBSTRING "${_paw_hash}" 0 8 _paw_hash)
+  set(PAW_WHISPER_BINARY_DIR "${PAW_WORK}/b/${_paw_hash}")
+  set(FETCHCONTENT_BASE_DIR "${PAW_WORK}/src" CACHE PATH "" FORCE)
+else()
+  set(PAW_WHISPER_BINARY_DIR "w")
+endif()
+
 if (NOT EXISTS "${PAW_WHISPER_DIR}/include/whisper.h")
-  message(FATAL_ERROR
-    "whisper.cpp sources not found at ${PAW_WHISPER_DIR}. "
-    "Run tool/fetch_whisper_cpp.sh in the pcm_asr package first.")
+  include(FetchContent)
+  FetchContent_Declare(paw_whisper
+    URL "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/${PAW_WHISPER_TAG}.tar.gz"
+    URL_HASH "SHA256=${PAW_WHISPER_SHA256}"
+    SOURCE_SUBDIR "does-not-exist-so-nothing-is-added")
+  FetchContent_MakeAvailable(paw_whisper)
+  set(PAW_WHISPER_DIR "${paw_whisper_SOURCE_DIR}")
+  message(STATUS "pcm_asr: whisper.cpp ${PAW_WHISPER_TAG} fetched to ${PAW_WHISPER_DIR}")
 endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -60,10 +89,7 @@ if (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|x64)$")
   endif()
 endif()
 
-# Short binary-directory names: the Vulkan shader generator nests an
-# ExternalProject whose MSBuild probe files exceed MAX_PATH from a deep
-# Flutter build directory. Build the app from a short path if it still fails.
-add_subdirectory("${PAW_WHISPER_DIR}" w EXCLUDE_FROM_ALL)
+add_subdirectory("${PAW_WHISPER_DIR}" "${PAW_WHISPER_BINARY_DIR}" EXCLUDE_FROM_ALL)
 
 add_library(pcm_asr_whisper SHARED "pcm_asr_whisper.c")
 target_link_libraries(pcm_asr_whisper PRIVATE whisper)
