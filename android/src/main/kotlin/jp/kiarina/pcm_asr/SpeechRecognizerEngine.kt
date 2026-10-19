@@ -343,8 +343,9 @@ class SpeechRecognizerEngine(private val context: Context) {
           finish(r, text = r.finalText ?: r.lastPartial ?: "", source = "error_$error")
         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
           finish(r, error = "engineFailure" to "recognizer ignored EXTRA_AUDIO_SOURCE and asked for the microphone (error $error)")
-        SpeechRecognizer.ERROR_SERVER_DISCONNECTED, SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> {
-          // The service connection was lost (seen after cancel()); retry once on a fresh recognizer.
+        SpeechRecognizer.ERROR_SERVER_DISCONNECTED, SpeechRecognizer.ERROR_RECOGNIZER_BUSY, SpeechRecognizer.ERROR_CLIENT -> {
+          // The service connection was lost or not ready (seen right after cancel() destroyed the
+          // previous recognizer; ERROR_CLIENT then came back for the next startListening). Retry on a fresh one.
           if (r.retries < 3) {
             r.retries++
             current = null

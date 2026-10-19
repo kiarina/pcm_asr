@@ -13,6 +13,20 @@ actor SpeechAnalyzerEngine {
 
   private var running: [String: RunningRequest] = [:]
 
+  // One analysis at a time: iOS refused three simultaneous analyzers with
+  // SFSpeechErrorDomain 16 "Maximum number of recognizers reached".
+  private var busy = false
+  private var waiters: [CheckedContinuation<Void, Never>] = []
+
+  private func acquire() async {
+    if !busy { busy = true; return }
+    await withCheckedContinuation { waiters.append($0) }
+  }
+
+  private func release() {
+    if waiters.isEmpty { busy = false } else { waiters.removeFirst().resume() }
+  }
+
   private final class RunningRequest {
     let task: Task<[String: Any], Error>
     let cancelHandler: @Sendable () async -> Void
@@ -87,6 +101,9 @@ actor SpeechAnalyzerEngine {
     let analyzerBox = AnalyzerBox()
     let cancelHandler: @Sendable () async -> Void = { await analyzerBox.cancel() }
     let task = Task<[String: Any], Error> {
+      await self.acquire()
+      defer { Task { await self.release() } }
+      if Task.isCancelled { throw EngineError.cancelled("cancelled: \(id)") }
       let origin = ContinuousClock.now
       let locale = try await self.resolve(tag)
       let buffer = try Self.makeBuffer(pcm: pcm, sampleRate: sampleRate, channels: channels)
