@@ -31,8 +31,8 @@ set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_BACKEND_DL OFF CACHE BOOL "" FORCE)
 
 if (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|x64)$")
-  # x64 CPU with AVX2 (Haswell+ / Zen+). No GPU backend: Vulkan would need the
-  # Vulkan SDK at build time. The DLL depends only on the MSVC runtime.
+  # x64 CPU with AVX2 (Haswell+ / Zen+); the DLL depends only on the MSVC
+  # runtime (and vulkan-1.dll from the graphics driver when Vulkan is on).
   set(GGML_AVX  ON CACHE BOOL "" FORCE)
   set(GGML_AVX2 ON CACHE BOOL "" FORCE)
   set(GGML_FMA  ON CACHE BOOL "" FORCE)
