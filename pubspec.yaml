@@ -46,5 +46,4 @@ flutter:
         fileName: pcm_asr_web.dart
       windows:
         dartPluginClass: PcmAsrWindows
-        fileName: pcm_asr_windows.dart
         ffiPlugin: true

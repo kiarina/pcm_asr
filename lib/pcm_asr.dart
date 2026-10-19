@@ -10,6 +10,8 @@ import 'src/types.dart';
 
 export 'src/platform_interface.dart' show PcmAsrPlatform;
 export 'src/types.dart';
+// The Windows backend (whisper.cpp through dart:ffi); a stub on the Web.
+export 'src/windows_stub.dart' if (dart.library.ffi) 'pcm_asr_windows.dart' show PcmAsrWindows;
 
 class PcmAsr {
   const PcmAsr();
