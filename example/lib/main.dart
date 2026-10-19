@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show exit, stdout;
+import 'dart:io' show File, FileMode, exit, stdout;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pcm_asr/pcm_asr.dart';
+
+import 'windows_knobs_io.dart' if (dart.library.js_interop) 'windows_knobs_web.dart';
 
 /// `--dart-define=PCM_ASR_AUTOTEST=1`: run the fixture on start, print one
 /// JSON line per step prefixed with `PCM_ASR `, and (on desktop) exit.
@@ -15,6 +17,13 @@ const locale = String.fromEnvironment('PCM_ASR_LOCALE', defaultValue: 'ja-JP');
 /// Android lab knobs: write pace (1.0 = real time) and silent tail in ms.
 const androidPace = String.fromEnvironment('PCM_ASR_ANDROID_PACE');
 const androidTailMs = String.fromEnvironment('PCM_ASR_ANDROID_TAIL_MS');
+
+/// Windows lab knobs: whisper model name and thread count.
+const whisperModel = String.fromEnvironment('PCM_ASR_WHISPER_MODEL');
+const whisperThreads = String.fromEnvironment('PCM_ASR_WHISPER_THREADS');
+
+/// Also append every line to this file (Windows GUI apps have no stdout).
+const logFile = String.fromEnvironment('PCM_ASR_LOG_FILE');
 
 void main() => runApp(const MaterialApp(home: FixturePage()));
 
@@ -44,6 +53,7 @@ class _FixturePageState extends State<FixturePage> {
       print('PCM_ASR $line');
     } else {
       stdout.writeln('PCM_ASR $line');
+      if (logFile.isNotEmpty) File(logFile).writeAsStringSync('PCM_ASR $line\n', mode: FileMode.append, flush: true);
     }
     setState(() => lines.add(line));
   }
@@ -58,6 +68,10 @@ class _FixturePageState extends State<FixturePage> {
     String? unsupportedReason;
     try {
       log('platform', {'os': kIsWeb ? 'web' : defaultTargetPlatform.name, 'locale': locale});
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && (whisperModel.isNotEmpty || whisperThreads.isNotEmpty)) {
+        configureWindows(model: whisperModel, threads: int.tryParse(whisperThreads));
+        log('configure', {'whisper_model': whisperModel, 'threads': whisperThreads});
+      }
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && (androidPace.isNotEmpty || androidTailMs.isNotEmpty)) {
         await const MethodChannel('pcm_asr').invokeMethod('configure', {
           'pace': ?double.tryParse(androidPace),

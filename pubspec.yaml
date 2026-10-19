@@ -19,6 +19,10 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   web: ^1.1.1
+  # Windows backend (whisper.cpp through dart:ffi)
+  crypto: ^3.0.6
+  ffi: ^2.1.3
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -40,3 +44,6 @@ flutter:
       web:
         pluginClass: PcmAsrWeb
         fileName: pcm_asr_web.dart
+      windows:
+        dartPluginClass: PcmAsrWindows
+        ffiPlugin: true
