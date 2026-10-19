@@ -25,16 +25,40 @@ class WhisperModel {
   final int bytes;
   final String sha256;
 
-  String get url => 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$file';
+  String get url =>
+      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$file';
 
-  static const base = WhisperModel('base', 'ggml-base.bin', 147951465, '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe');
-  static const small = WhisperModel('small', 'ggml-small.bin', 487601967, '1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b');
-  static const largeV3Turbo = WhisperModel('large-v3-turbo', 'ggml-large-v3-turbo.bin', 1624555275, '1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69');
-  static const largeV3TurboQ5 = WhisperModel('large-v3-turbo-q5_0', 'ggml-large-v3-turbo-q5_0.bin', 574041195, '394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2');
+  static const base = WhisperModel(
+    'base',
+    'ggml-base.bin',
+    147951465,
+    '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe',
+  );
+  static const small = WhisperModel(
+    'small',
+    'ggml-small.bin',
+    487601967,
+    '1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b',
+  );
+  static const largeV3Turbo = WhisperModel(
+    'large-v3-turbo',
+    'ggml-large-v3-turbo.bin',
+    1624555275,
+    '1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69',
+  );
+  static const largeV3TurboQ5 = WhisperModel(
+    'large-v3-turbo-q5_0',
+    'ggml-large-v3-turbo-q5_0.bin',
+    574041195,
+    '394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2',
+  );
 
   static const all = [base, small, largeV3Turbo, largeV3TurboQ5];
 
-  static WhisperModel byName(String name) => all.firstWhere((m) => m.name == name, orElse: () => throw ArgumentError('unknown whisper model: $name'));
+  static WhisperModel byName(String name) => all.firstWhere(
+    (m) => m.name == name,
+    orElse: () => throw ArgumentError('unknown whisper model: $name'),
+  );
 }
 
 class PcmAsrWindows extends PcmAsrPlatform {
@@ -76,7 +100,9 @@ class PcmAsrWindows extends PcmAsrPlatform {
   /// Where models are stored; defaults to the app's support directory.
   static Future<Directory> Function() modelDirectory = () async {
     final dir = await getApplicationSupportDirectory();
-    return Directory('${dir.path}${Platform.pathSeparator}pcm_asr${Platform.pathSeparator}whisper');
+    return Directory(
+      '${dir.path}${Platform.pathSeparator}pcm_asr${Platform.pathSeparator}whisper',
+    );
   };
 
   static const engineIdPrefix = 'whisper.cpp';
@@ -85,9 +111,14 @@ class PcmAsrWindows extends PcmAsrPlatform {
   WhisperModel? _loaded;
   final _running = <String, WhisperAbortFlag>{};
 
-  static WhisperModel get effectiveModel => model ?? (WhisperEngine.gpuAvailable ? WhisperModel.largeV3TurboQ5 : WhisperModel.small);
+  static WhisperModel get effectiveModel =>
+      model ??
+      (WhisperEngine.gpuAvailable
+          ? WhisperModel.largeV3TurboQ5
+          : WhisperModel.small);
 
-  static int get effectiveThreads => threads > 0 ? threads : math.min(8, Platform.numberOfProcessors);
+  static int get effectiveThreads =>
+      threads > 0 ? threads : math.min(8, Platform.numberOfProcessors);
 
   String _engineId() => '$engineIdPrefix/${effectiveModel.name}';
 
@@ -97,13 +128,16 @@ class PcmAsrWindows extends PcmAsrPlatform {
     return _whisperLanguages.contains(lang) ? lang : null;
   }
 
-  Future<File> _modelFile() async => File('${(await modelDirectory()).path}${Platform.pathSeparator}${effectiveModel.file}');
+  Future<File> _modelFile() async => File(
+    '${(await modelDirectory()).path}${Platform.pathSeparator}${effectiveModel.file}',
+  );
 
   @override
   Future<RecognitionSupport> support({required String locale}) async {
     final lang = languageOf(locale);
     final file = await _modelFile();
-    final installed = await file.exists() && await file.length() == effectiveModel.bytes;
+    final installed =
+        await file.exists() && await file.length() == effectiveModel.bytes;
     return RecognitionSupport(
       engine: _engineId(),
       supported: lang != null,
@@ -118,9 +152,15 @@ class PcmAsrWindows extends PcmAsrPlatform {
   }
 
   @override
-  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) async {
+  Future<void> prepare({
+    required String locale,
+    void Function(PrepareProgress progress)? onProgress,
+  }) async {
     if (languageOf(locale) == null) {
-      throw PcmAsrException(PcmAsrErrorCode.unsupportedLocale, 'whisper has no language for $locale');
+      throw PcmAsrException(
+        PcmAsrErrorCode.unsupportedLocale,
+        'whisper has no language for $locale',
+      );
     }
     final file = await _modelFile();
     final wanted = effectiveModel;
@@ -145,13 +185,21 @@ class PcmAsrWindows extends PcmAsrPlatform {
           noise[i] = (seed / 0x7fffffff - 0.5) * 0.02;
         }
         try {
-          await _engine!.transcribe(noise, language: languageOf(locale)!, threads: effectiveThreads);
+          await _engine!.transcribe(
+            noise,
+            language: languageOf(locale)!,
+            threads: effectiveThreads,
+          );
         } catch (_) {}
       }
     }
   }
 
-  Future<void> _download(File file, WhisperModel model, void Function(PrepareProgress progress)? onProgress) async {
+  Future<void> _download(
+    File file,
+    WhisperModel model,
+    void Function(PrepareProgress progress)? onProgress,
+  ) async {
     await file.parent.create(recursive: true);
     final part = File('${file.path}.part');
     final client = HttpClient();
@@ -159,31 +207,56 @@ class PcmAsrWindows extends PcmAsrPlatform {
       final request = await client.getUrl(Uri.parse(model.url));
       final response = await request.close();
       if (response.statusCode != 200) {
-        throw PcmAsrException(PcmAsrErrorCode.modelUnavailable, 'GET ${model.url} -> ${response.statusCode}');
+        throw PcmAsrException(
+          PcmAsrErrorCode.modelUnavailable,
+          'GET ${model.url} -> ${response.statusCode}',
+        );
       }
       final sink = part.openWrite();
       var received = 0;
       var lastReport = 0;
-      final total = (response.contentLength > 0 ? response.contentLength : model.bytes).toDouble();
-      onProgress?.call(PrepareProgress(stage: 'download', completed: 0, total: total));
+      final total =
+          (response.contentLength > 0 ? response.contentLength : model.bytes)
+              .toDouble();
+      onProgress?.call(
+        PrepareProgress(stage: 'download', completed: 0, total: total),
+      );
       await for (final chunk in response) {
         sink.add(chunk);
         received += chunk.length;
         if (received - lastReport >= 1 << 20) {
           lastReport = received;
-          onProgress?.call(PrepareProgress(stage: 'download', completed: received.toDouble(), total: total));
+          onProgress?.call(
+            PrepareProgress(
+              stage: 'download',
+              completed: received.toDouble(),
+              total: total,
+            ),
+          );
         }
       }
       await sink.close();
-      onProgress?.call(PrepareProgress(stage: 'download', completed: received.toDouble(), total: total));
+      onProgress?.call(
+        PrepareProgress(
+          stage: 'download',
+          completed: received.toDouble(),
+          total: total,
+        ),
+      );
       final got = (await sha256.bind(part.openRead()).first).toString();
       if (got != model.sha256) {
         await part.delete();
-        throw PcmAsrException(PcmAsrErrorCode.modelUnavailable, 'sha256 mismatch for ${model.file}: $got');
+        throw PcmAsrException(
+          PcmAsrErrorCode.modelUnavailable,
+          'sha256 mismatch for ${model.file}: $got',
+        );
       }
       await part.rename(file.path);
     } on SocketException catch (e) {
-      throw PcmAsrException(PcmAsrErrorCode.modelUnavailable, 'download failed: $e');
+      throw PcmAsrException(
+        PcmAsrErrorCode.modelUnavailable,
+        'download failed: $e',
+      );
     } finally {
       client.close();
     }
@@ -192,19 +265,42 @@ class PcmAsrWindows extends PcmAsrPlatform {
   @override
   Future<TranscribeResult> transcribe(TranscribeRequest request) async {
     final lang = languageOf(request.locale);
-    if (lang == null) throw PcmAsrException(PcmAsrErrorCode.unsupportedLocale, 'whisper has no language for ${request.locale}');
-    if (_running.containsKey(request.id)) throw PcmAsrException(PcmAsrErrorCode.engineFailure, 'request id already running: ${request.id}');
+    if (lang == null)
+      throw PcmAsrException(
+        PcmAsrErrorCode.unsupportedLocale,
+        'whisper has no language for ${request.locale}',
+      );
+    if (_running.containsKey(request.id))
+      throw PcmAsrException(
+        PcmAsrErrorCode.engineFailure,
+        'request id already running: ${request.id}',
+      );
     final engine = _engine;
-    if (engine == null) throw const PcmAsrException(PcmAsrErrorCode.modelUnavailable, 'call prepare() first');
+    if (engine == null)
+      throw const PcmAsrException(
+        PcmAsrErrorCode.modelUnavailable,
+        'call prepare() first',
+      );
     final flag = WhisperAbortFlag();
     _running[request.id] = flag;
     final started = DateTime.now();
     try {
       final pcm = toMono16k(request.audio);
       if (rms(pcm) < silenceRms) {
-        return TranscribeResult(id: request.id, text: '', engine: _engineId(), locale: request.locale, elapsed: DateTime.now().difference(started));
+        return TranscribeResult(
+          id: request.id,
+          text: '',
+          engine: _engineId(),
+          locale: request.locale,
+          elapsed: DateTime.now().difference(started),
+        );
       }
-      final work = engine.transcribe(pcm, language: lang, threads: effectiveThreads, abort: flag);
+      final work = engine.transcribe(
+        pcm,
+        language: lang,
+        threads: effectiveThreads,
+        abort: flag,
+      );
       WhisperResult result;
       try {
         result = await work.timeout(request.timeout);
@@ -213,9 +309,16 @@ class PcmAsrWindows extends PcmAsrPlatform {
         try {
           await work;
         } catch (_) {}
-        throw PcmAsrException(PcmAsrErrorCode.timeout, 'No final result within ${request.timeout.inMilliseconds} ms');
+        throw PcmAsrException(
+          PcmAsrErrorCode.timeout,
+          'No final result within ${request.timeout.inMilliseconds} ms',
+        );
       } on WhisperException catch (e) {
-        if (e.aborted) throw PcmAsrException(PcmAsrErrorCode.cancelled, 'cancelled: ${request.id}');
+        if (e.aborted)
+          throw PcmAsrException(
+            PcmAsrErrorCode.cancelled,
+            'cancelled: ${request.id}',
+          );
         throw PcmAsrException(PcmAsrErrorCode.engineFailure, e.message);
       }
       return TranscribeResult(
@@ -224,7 +327,10 @@ class PcmAsrWindows extends PcmAsrPlatform {
         engine: _engineId(),
         locale: request.locale,
         elapsed: DateTime.now().difference(started),
-        ranges: [for (final s in result.segments) TranscribedRange(text: s.text, start: s.start, end: s.end)],
+        ranges: [
+          for (final s in result.segments)
+            TranscribedRange(text: s.text, start: s.start, end: s.end),
+        ],
       );
     } finally {
       _running.remove(request.id);
@@ -287,9 +393,104 @@ class PcmAsrWindows extends PcmAsrPlatform {
 
 // whisper.cpp's language list (whisper_lang_str ids 0..98).
 const _whisperLanguages = {
-  'en', 'zh', 'de', 'es', 'ru', 'ko', 'fr', 'ja', 'pt', 'tr', 'pl', 'ca', 'nl', 'ar', 'sv', 'it', 'id', 'hi', 'fi', 'vi', //
-  'he', 'uk', 'el', 'ms', 'cs', 'ro', 'da', 'hu', 'ta', 'no', 'th', 'ur', 'hr', 'bg', 'lt', 'la', 'mi', 'ml', 'cy', 'sk', //
-  'te', 'fa', 'lv', 'bn', 'sr', 'az', 'sl', 'kn', 'et', 'mk', 'br', 'eu', 'is', 'hy', 'ne', 'mn', 'bs', 'kk', 'sq', 'sw', //
-  'gl', 'mr', 'pa', 'si', 'km', 'sn', 'yo', 'so', 'af', 'oc', 'ka', 'be', 'tg', 'sd', 'gu', 'am', 'yi', 'lo', 'uz', 'fo', //
-  'ht', 'ps', 'tk', 'nn', 'mt', 'sa', 'lb', 'my', 'bo', 'tl', 'mg', 'as', 'tt', 'haw', 'ln', 'ha', 'ba', 'jw', 'su', 'yue',
+  'en',
+  'zh',
+  'de',
+  'es',
+  'ru',
+  'ko',
+  'fr',
+  'ja',
+  'pt',
+  'tr',
+  'pl',
+  'ca',
+  'nl',
+  'ar',
+  'sv',
+  'it',
+  'id',
+  'hi',
+  'fi',
+  'vi', //
+  'he',
+  'uk',
+  'el',
+  'ms',
+  'cs',
+  'ro',
+  'da',
+  'hu',
+  'ta',
+  'no',
+  'th',
+  'ur',
+  'hr',
+  'bg',
+  'lt',
+  'la',
+  'mi',
+  'ml',
+  'cy',
+  'sk', //
+  'te',
+  'fa',
+  'lv',
+  'bn',
+  'sr',
+  'az',
+  'sl',
+  'kn',
+  'et',
+  'mk',
+  'br',
+  'eu',
+  'is',
+  'hy',
+  'ne',
+  'mn',
+  'bs',
+  'kk',
+  'sq',
+  'sw', //
+  'gl',
+  'mr',
+  'pa',
+  'si',
+  'km',
+  'sn',
+  'yo',
+  'so',
+  'af',
+  'oc',
+  'ka',
+  'be',
+  'tg',
+  'sd',
+  'gu',
+  'am',
+  'yi',
+  'lo',
+  'uz',
+  'fo', //
+  'ht',
+  'ps',
+  'tk',
+  'nn',
+  'mt',
+  'sa',
+  'lb',
+  'my',
+  'bo',
+  'tl',
+  'mg',
+  'as',
+  'tt',
+  'haw',
+  'ln',
+  'ha',
+  'ba',
+  'jw',
+  'su',
+  'yue',
 };

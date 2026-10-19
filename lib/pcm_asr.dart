@@ -11,7 +11,9 @@ import 'src/types.dart';
 export 'src/platform_interface.dart' show PcmAsrPlatform;
 export 'src/types.dart';
 // The Windows backend (whisper.cpp through dart:ffi); a stub on the Web.
-export 'src/windows_stub.dart' if (dart.library.ffi) 'pcm_asr_windows.dart' show PcmAsrWindows;
+export 'src/windows_stub.dart'
+    if (dart.library.ffi) 'pcm_asr_windows.dart'
+    show PcmAsrWindows;
 
 class PcmAsr {
   const PcmAsr();
@@ -26,8 +28,10 @@ class PcmAsr {
   /// [RecognitionSupport.modelState] is [ModelState.downloadable]; nothing is
   /// downloaded without this call. [onProgress] receives download, install,
   /// load and warm-up progress where the engine reports it.
-  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) =>
-      PcmAsrPlatform.instance.prepare(locale: locale, onProgress: onProgress);
+  Future<void> prepare({
+    required String locale,
+    void Function(PrepareProgress progress)? onProgress,
+  }) => PcmAsrPlatform.instance.prepare(locale: locale, onProgress: onProgress);
 
   /// Longest segment [transcribe] accepts. Whisper decodes in 30 s windows
   /// and Android's recognizer restarts its hypothesis on long input, so a
@@ -37,10 +41,12 @@ class PcmAsr {
   /// Transcribes one finalized segment and returns its final text.
   Future<TranscribeResult> transcribe(TranscribeRequest request) {
     if (request.audio.duration > maxSegment) {
-      return Future.error(PcmAsrException(
-        PcmAsrErrorCode.invalidPcm,
-        'segment of ${request.audio.duration.inMilliseconds} ms exceeds maxSegment (${maxSegment.inMilliseconds} ms)',
-      ));
+      return Future.error(
+        PcmAsrException(
+          PcmAsrErrorCode.invalidPcm,
+          'segment of ${request.audio.duration.inMilliseconds} ms exceeds maxSegment (${maxSegment.inMilliseconds} ms)',
+        ),
+      );
     }
     return PcmAsrPlatform.instance.transcribe(request);
   }

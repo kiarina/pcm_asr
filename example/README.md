@@ -1,17 +1,15 @@
-# pcm_asr_example
+# pcm_asr example
 
-Demonstrates how to use the pcm_asr plugin.
+Plays six finalized Japanese segments of a shared two-speaker conversation
+through `pcm_asr` three times (forward, forward, reversed), then the error
+paths the contract promises, and prints one `PCM_ASR {json}` line per step.
 
-## Getting Started
+```sh
+python3 ../tool/prepare_example_segments.py <path to conversation_2speaker_14s_16k.mp3>
+flutter run --release --dart-define=PCM_ASR_AUTOTEST=1
+```
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+`--dart-define=PCM_ASR_SOAK=300` adds 300 back-to-back requests; on Windows
+`PCM_ASR_WHISPER_MODEL`, `PCM_ASR_WHISPER_THREADS`, `PCM_ASR_WHISPER_GPU` and
+`PCM_ASR_LOG_FILE` select the model and a log file. `tool/evaluate_example_log.py`
+turns the log into a summary with the character error rate.

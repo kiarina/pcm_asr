@@ -8,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pcm_asr/pcm_asr.dart';
 
-import 'windows_knobs_io.dart' if (dart.library.js_interop) 'windows_knobs_web.dart';
+import 'windows_knobs_io.dart'
+    if (dart.library.js_interop) 'windows_knobs_web.dart';
 
 /// `--dart-define=PCM_ASR_AUTOTEST=1`: run the fixture on start, print one
 /// JSON line per step prefixed with `PCM_ASR `, and (on desktop) exit.
@@ -59,7 +60,12 @@ class _FixturePageState extends State<FixturePage> {
       print('PCM_ASR $line');
     } else {
       stdout.writeln('PCM_ASR $line');
-      if (logFile.isNotEmpty) File(logFile).writeAsStringSync('PCM_ASR $line\n', mode: FileMode.append, flush: true);
+      if (logFile.isNotEmpty)
+        File(logFile).writeAsStringSync(
+          'PCM_ASR $line\n',
+          mode: FileMode.append,
+          flush: true,
+        );
     }
     setState(() => lines.add(line));
   }
@@ -73,12 +79,26 @@ class _FixturePageState extends State<FixturePage> {
     var ok = false;
     String? unsupportedReason;
     try {
-      log('platform', {'os': kIsWeb ? 'web' : defaultTargetPlatform.name, 'locale': locale});
+      log('platform', {
+        'os': kIsWeb ? 'web' : defaultTargetPlatform.name,
+        'locale': locale,
+      });
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-        configureWindows(model: whisperModel, threads: int.tryParse(whisperThreads), useGpu: whisperGpu.isEmpty ? null : whisperGpu == '1');
-        log('configure', {'whisper_model': whisperModel, 'threads': whisperThreads, 'gpu': whisperGpu, 'backend': windowsBackend()});
+        configureWindows(
+          model: whisperModel,
+          threads: int.tryParse(whisperThreads),
+          useGpu: whisperGpu.isEmpty ? null : whisperGpu == '1',
+        );
+        log('configure', {
+          'whisper_model': whisperModel,
+          'threads': whisperThreads,
+          'gpu': whisperGpu,
+          'backend': windowsBackend(),
+        });
       }
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && (androidPace.isNotEmpty || androidTailMs.isNotEmpty)) {
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android &&
+          (androidPace.isNotEmpty || androidTailMs.isNotEmpty)) {
         await const MethodChannel('pcm_asr').invokeMethod('configure', {
           'pace': ?double.tryParse(androidPace),
           'tail_ms': ?int.tryParse(androidTailMs),
@@ -93,18 +113,31 @@ class _FixturePageState extends State<FixturePage> {
       }
       final prepareStart = DateTime.now();
       final progress = <String>[];
-      await asr.prepare(locale: locale, onProgress: (p) {
-        if (progress.isEmpty || !progress.last.startsWith(p.stage)) progress.add(p.toString());
-        if (p.fraction == 1) progress.add(p.toString());
+      await asr.prepare(
+        locale: locale,
+        onProgress: (p) {
+          if (progress.isEmpty || !progress.last.startsWith(p.stage))
+            progress.add(p.toString());
+          if (p.fraction == 1) progress.add(p.toString());
+        },
+      );
+      log('prepare', {
+        'ms': DateTime.now().difference(prepareStart).inMilliseconds,
+        'model_state_before': support.modelState.name,
+        'progress': progress,
       });
-      log('prepare', {'ms': DateTime.now().difference(prepareStart).inMilliseconds, 'model_state_before': support.modelState.name, 'progress': progress});
 
-      final manifest = jsonDecode(await rootBundle.loadString('assets/segments/segments.json')) as List;
+      final manifest = jsonDecode(
+        await rootBundle.loadString('assets/segments/segments.json'),
+      ) as List;
       final segments = <(Map<String, Object?>, Uint8List)>[];
       for (final raw in manifest) {
         final row = (raw as Map).cast<String, Object?>();
         final bytes = await rootBundle.load('assets/segments/${row['file']}');
-        segments.add((row, bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes)));
+        segments.add((
+          row,
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        ));
       }
       // Three passes as in the earlier lab: forward, forward, reversed.
       for (var trial = 0; trial < 3; trial++) {
@@ -113,11 +146,17 @@ class _FixturePageState extends State<FixturePage> {
           final id = '${row['id']}#$trial';
           final sent = DateTime.now();
           try {
-            final result = await asr.transcribe(TranscribeRequest(
-              id: id,
-              locale: locale,
-              audio: PcmSegment(pcm16le: pcm, sampleRate: row['sample_rate'] as int, channels: row['channels'] as int),
-            ));
+            final result = await asr.transcribe(
+              TranscribeRequest(
+                id: id,
+                locale: locale,
+                audio: PcmSegment(
+                  pcm16le: pcm,
+                  sampleRate: row['sample_rate'] as int,
+                  channels: row['channels'] as int,
+                ),
+              ),
+            );
             log('result', {
               ...result.toJson(),
               'trial': trial,
@@ -127,44 +166,78 @@ class _FixturePageState extends State<FixturePage> {
               'id_matches': result.id == id,
             });
           } on PcmAsrException catch (e) {
-            log('error', {'id': id, 'trial': trial, 'code': e.code.name, 'message': e.message});
+            log('error', {
+              'id': id,
+              'trial': trial,
+              'code': e.code.name,
+              'message': e.message,
+            });
           }
         }
       }
       // Error paths the contract promises.
       try {
-        await asr.transcribe(TranscribeRequest(
-          id: 'bad-locale',
-          locale: 'xx-XX',
-          audio: PcmSegment(pcm16le: segments.first.$2, sampleRate: 16000),
-        ));
+        await asr.transcribe(
+          TranscribeRequest(
+            id: 'bad-locale',
+            locale: 'xx-XX',
+            audio: PcmSegment(pcm16le: segments.first.$2, sampleRate: 16000),
+          ),
+        );
         log('error_check', {'case': 'unsupported_locale', 'ok': false});
       } on PcmAsrException catch (e) {
-        log('error_check', {'case': 'unsupported_locale', 'ok': e.code == PcmAsrErrorCode.unsupportedLocale, 'code': e.code.name});
+        log('error_check', {
+          'case': 'unsupported_locale',
+          'ok': e.code == PcmAsrErrorCode.unsupportedLocale,
+          'code': e.code.name,
+        });
       }
       final cancelId = 'cancel-me';
-      final pending = asr.transcribe(TranscribeRequest(
-        id: cancelId,
-        locale: locale,
-        audio: PcmSegment(pcm16le: segments.first.$2, sampleRate: 16000),
-      ));
+      final pending = asr.transcribe(
+        TranscribeRequest(
+          id: cancelId,
+          locale: locale,
+          audio: PcmSegment(pcm16le: segments.first.$2, sampleRate: 16000),
+        ),
+      );
       await asr.cancel(cancelId);
       try {
         final r = await pending;
-        log('error_check', {'case': 'cancel', 'ok': true, 'note': 'finished before cancel', 'text': r.text});
+        log('error_check', {
+          'case': 'cancel',
+          'ok': true,
+          'note': 'finished before cancel',
+          'text': r.text,
+        });
       } on PcmAsrException catch (e) {
-        log('error_check', {'case': 'cancel', 'ok': e.code == PcmAsrErrorCode.cancelled, 'code': e.code.name});
+        log('error_check', {
+          'case': 'cancel',
+          'ok': e.code == PcmAsrErrorCode.cancelled,
+          'code': e.code.name,
+        });
       }
       // Silence must give empty text, not an error.
       try {
-        final r = await asr.transcribe(TranscribeRequest(
-          id: 'silence',
-          locale: locale,
-          audio: PcmSegment(pcm16le: Uint8List(16000 * 2), sampleRate: 16000),
-        ));
-        log('error_check', {'case': 'silence', 'ok': true, 'text': r.text, 'elapsed_ms': r.elapsed.inMilliseconds});
+        final r = await asr.transcribe(
+          TranscribeRequest(
+            id: 'silence',
+            locale: locale,
+            audio: PcmSegment(pcm16le: Uint8List(16000 * 2), sampleRate: 16000),
+          ),
+        );
+        log('error_check', {
+          'case': 'silence',
+          'ok': true,
+          'text': r.text,
+          'elapsed_ms': r.elapsed.inMilliseconds,
+        });
       } on PcmAsrException catch (e) {
-        log('error_check', {'case': 'silence', 'ok': false, 'code': e.code.name, 'message': e.message});
+        log('error_check', {
+          'case': 'silence',
+          'ok': false,
+          'code': e.code.name,
+          'message': e.message,
+        });
       }
       await robustness(segments);
       if (soakRequests > 0) await soak(segments);
@@ -175,7 +248,10 @@ class _FixturePageState extends State<FixturePage> {
     } finally {
       log('done', {'ok': ok, 'reason': ?unsupportedReason});
       if (mounted) setState(() => running = false);
-      if (autotest && !kIsWeb && (defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.windows)) {
+      if (autotest &&
+          !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.windows)) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
         exit(ok ? 0 : 1);
       }
@@ -192,7 +268,13 @@ class _FixturePageState extends State<FixturePage> {
     for (var i = 0; i < soakRequests; i++) {
       final (_, pcm) = segments[i % segments.length];
       try {
-        final r = await asr.transcribe(TranscribeRequest(id: 'soak-$i', locale: locale, audio: PcmSegment(pcm16le: pcm, sampleRate: 16000)));
+        final r = await asr.transcribe(
+          TranscribeRequest(
+            id: 'soak-$i',
+            locale: locale,
+            audio: PcmSegment(pcm16le: pcm, sampleRate: 16000),
+          ),
+        );
         elapsed.add(r.elapsed.inMilliseconds);
         if (r.text.isEmpty) failures++;
       } on PcmAsrException {
@@ -206,7 +288,12 @@ class _FixturePageState extends State<FixturePage> {
       'failures': failures,
       'seconds': DateTime.now().difference(started).inMilliseconds / 1000,
       'median_ms': elapsed.isEmpty ? null : elapsed[elapsed.length ~/ 2],
-      'p95_ms': elapsed.isEmpty ? null : elapsed[(elapsed.length * 0.95).floor().clamp(0, elapsed.length - 1)],
+      'p95_ms': elapsed.isEmpty
+          ? null
+          : elapsed[(elapsed.length * 0.95).floor().clamp(
+              0,
+              elapsed.length - 1,
+            )],
       'rss_before_mb': before == null ? null : before / 1048576,
       'rss_after_mb': after == null ? null : after / 1048576,
     });
@@ -214,13 +301,23 @@ class _FixturePageState extends State<FixturePage> {
 
   /// Edge cases the contract promises: very short and long input, concurrent
   /// and duplicate requests, a timeout, invalid PCM, use after dispose.
-  Future<void> robustness(List<(Map<String, Object?>, Uint8List)> segments) async {
+  Future<void> robustness(
+    List<(Map<String, Object?>, Uint8List)> segments,
+  ) async {
     final first = segments.first.$2;
-    Future<void> check(String name, Future<Map<String, Object?>> Function() body) async {
+    Future<void> check(
+      String name,
+      Future<Map<String, Object?>> Function() body,
+    ) async {
       try {
         log('error_check', {'case': name, 'ok': true, ...await body()});
       } on PcmAsrException catch (e) {
-        log('error_check', {'case': name, 'ok': false, 'code': e.code.name, 'message': e.message});
+        log('error_check', {
+          'case': name,
+          'ok': false,
+          'code': e.code.name,
+          'message': e.message,
+        });
       } catch (e) {
         log('error_check', {'case': name, 'ok': false, 'error': e.toString()});
       }
@@ -228,7 +325,16 @@ class _FixturePageState extends State<FixturePage> {
 
     // 100 ms: must come back (text may be empty), not fail.
     await check('short', () async {
-      final r = await asr.transcribe(TranscribeRequest(id: 'short', locale: locale, audio: PcmSegment(pcm16le: Uint8List.sublistView(first, 0, 3200), sampleRate: 16000)));
+      final r = await asr.transcribe(
+        TranscribeRequest(
+          id: 'short',
+          locale: locale,
+          audio: PcmSegment(
+            pcm16le: Uint8List.sublistView(first, 0, 3200),
+            sampleRate: 16000,
+          ),
+        ),
+      );
       return {'text': r.text, 'elapsed_ms': r.elapsed.inMilliseconds};
     });
     // ~28 s: all six segments twice.
@@ -240,53 +346,117 @@ class _FixturePageState extends State<FixturePage> {
         }
       }
       final pcm = all.takeBytes();
-      final r = await asr.transcribe(TranscribeRequest(id: 'long', locale: locale, audio: PcmSegment(pcm16le: pcm, sampleRate: 16000), timeout: const Duration(seconds: 90)));
-      if (r.text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'empty text for 28 s of speech');
-      return {'seconds': pcm.length / 32000, 'characters': r.text.length, 'elapsed_ms': r.elapsed.inMilliseconds};
+      final r = await asr.transcribe(
+        TranscribeRequest(
+          id: 'long',
+          locale: locale,
+          audio: PcmSegment(pcm16le: pcm, sampleRate: 16000),
+          timeout: const Duration(seconds: 90),
+        ),
+      );
+      if (r.text.isEmpty)
+        throw const PcmAsrException(
+          PcmAsrErrorCode.engineFailure,
+          'empty text for 28 s of speech',
+        );
+      return {
+        'seconds': pcm.length / 32000,
+        'characters': r.text.length,
+        'elapsed_ms': r.elapsed.inMilliseconds,
+      };
     });
     // Three at once: every reply must carry its own id.
     await check('concurrent', () async {
       final futures = [
         for (var i = 0; i < 3; i++)
-          asr.transcribe(TranscribeRequest(id: 'concurrent-$i', locale: locale, audio: PcmSegment(pcm16le: segments[i].$2, sampleRate: 16000), timeout: const Duration(seconds: 60))),
+          asr.transcribe(
+            TranscribeRequest(
+              id: 'concurrent-$i',
+              locale: locale,
+              audio: PcmSegment(pcm16le: segments[i].$2, sampleRate: 16000),
+              timeout: const Duration(seconds: 60),
+            ),
+          ),
       ];
       final results = await Future.wait(futures);
       for (var i = 0; i < 3; i++) {
-        if (results[i].id != 'concurrent-$i') throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'id mismatch');
-        if (results[i].text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'empty text in concurrent request');
+        if (results[i].id != 'concurrent-$i')
+          throw const PcmAsrException(
+            PcmAsrErrorCode.engineFailure,
+            'id mismatch',
+          );
+        if (results[i].text.isEmpty)
+          throw const PcmAsrException(
+            PcmAsrErrorCode.engineFailure,
+            'empty text in concurrent request',
+          );
       }
-      return {'elapsed_ms': [for (final r in results) r.elapsed.inMilliseconds]};
+      return {
+        'elapsed_ms': [for (final r in results) r.elapsed.inMilliseconds],
+      };
     });
     // Same id twice: the second must be refused, the first must finish.
     await check('duplicate_id', () async {
-      final a = asr.transcribe(TranscribeRequest(id: 'dup', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+      final a = asr.transcribe(
+        TranscribeRequest(
+          id: 'dup',
+          locale: locale,
+          audio: PcmSegment(pcm16le: first, sampleRate: 16000),
+        ),
+      );
       String second;
       try {
-        await asr.transcribe(TranscribeRequest(id: 'dup', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+        await asr.transcribe(
+          TranscribeRequest(
+            id: 'dup',
+            locale: locale,
+            audio: PcmSegment(pcm16le: first, sampleRate: 16000),
+          ),
+        );
         second = 'accepted';
       } on PcmAsrException catch (e) {
         second = e.code.name;
       }
       final r = await a;
-      if (r.text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'first request lost its text');
+      if (r.text.isEmpty)
+        throw const PcmAsrException(
+          PcmAsrErrorCode.engineFailure,
+          'first request lost its text',
+        );
       return {'second': second};
     });
     // 1 ms timeout: must be reported as timeout and leave the engine usable.
     await check('timeout', () async {
       try {
-        await asr.transcribe(TranscribeRequest(id: 'timeout', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000), timeout: const Duration(milliseconds: 1)));
+        await asr.transcribe(
+          TranscribeRequest(
+            id: 'timeout',
+            locale: locale,
+            audio: PcmSegment(pcm16le: first, sampleRate: 16000),
+            timeout: const Duration(milliseconds: 1),
+          ),
+        );
         return {'note': 'finished within 1 ms'};
       } on PcmAsrException catch (e) {
         if (e.code != PcmAsrErrorCode.timeout) rethrow;
       }
-      final r = await asr.transcribe(TranscribeRequest(id: 'after-timeout', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+      final r = await asr.transcribe(
+        TranscribeRequest(
+          id: 'after-timeout',
+          locale: locale,
+          audio: PcmSegment(pcm16le: first, sampleRate: 16000),
+        ),
+      );
       return {'after_timeout_text': r.text};
     });
     // Odd byte count: rejected before any native call.
     await check('invalid_pcm', () async {
       try {
         PcmSegment(pcm16le: Uint8List(3), sampleRate: 16000);
-        throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'accepted an odd byte count');
+        throw const PcmAsrException(
+          PcmAsrErrorCode.engineFailure,
+          'accepted an odd byte count',
+        );
       } on ArgumentError {
         return {};
       }
@@ -297,14 +467,30 @@ class _FixturePageState extends State<FixturePage> {
       await asr.dispose();
       String afterDispose;
       try {
-        final r = await asr.transcribe(TranscribeRequest(id: 'after-dispose', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+        final r = await asr.transcribe(
+          TranscribeRequest(
+            id: 'after-dispose',
+            locale: locale,
+            audio: PcmSegment(pcm16le: first, sampleRate: 16000),
+          ),
+        );
         afterDispose = r.text.isEmpty ? 'empty' : 'text';
       } on PcmAsrException catch (e) {
         afterDispose = e.code.name;
       }
       await asr.prepare(locale: locale);
-      final r = await asr.transcribe(TranscribeRequest(id: 'resumed', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
-      if (r.text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'no text after resume');
+      final r = await asr.transcribe(
+        TranscribeRequest(
+          id: 'resumed',
+          locale: locale,
+          audio: PcmSegment(pcm16le: first, sampleRate: 16000),
+        ),
+      );
+      if (r.text.isEmpty)
+        throw const PcmAsrException(
+          PcmAsrErrorCode.engineFailure,
+          'no text after resume',
+        );
       return {'after_dispose': afterDispose};
     });
   }
@@ -317,14 +503,23 @@ class _FixturePageState extends State<FixturePage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
-            child: FilledButton(onPressed: running ? null : run, child: Text(running ? 'running…' : 'Run fixture ($locale)')),
+            child: FilledButton(
+              onPressed: running ? null : run,
+              child: Text(running ? 'running…' : 'Run fixture ($locale)'),
+            ),
           ),
           Expanded(
             child: ListView.builder(
               itemCount: lines.length,
               itemBuilder: (_, i) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                child: SelectableText(lines[i], style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                child: SelectableText(
+                  lines[i],
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                ),
               ),
             ),
           ),

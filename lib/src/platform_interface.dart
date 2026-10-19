@@ -22,7 +22,10 @@ abstract class PcmAsrPlatform extends PlatformInterface {
     throw UnimplementedError('support() has not been implemented.');
   }
 
-  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) {
+  Future<void> prepare({
+    required String locale,
+    void Function(PrepareProgress progress)? onProgress,
+  }) {
     throw UnimplementedError('prepare() has not been implemented.');
   }
 

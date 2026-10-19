@@ -8,9 +8,18 @@ void main() {
 
   group('PcmSegment', () {
     test('rejects empty and half frames', () {
-      expect(() => PcmSegment(pcm16le: Uint8List(0), sampleRate: 16000), throwsArgumentError);
-      expect(() => PcmSegment(pcm16le: Uint8List(3), sampleRate: 16000), throwsArgumentError);
-      expect(() => PcmSegment(pcm16le: Uint8List(6), sampleRate: 16000, channels: 2), throwsArgumentError);
+      expect(
+        () => PcmSegment(pcm16le: Uint8List(0), sampleRate: 16000),
+        throwsArgumentError,
+      );
+      expect(
+        () => PcmSegment(pcm16le: Uint8List(3), sampleRate: 16000),
+        throwsArgumentError,
+      );
+      expect(
+        () => PcmSegment(pcm16le: Uint8List(6), sampleRate: 16000, channels: 2),
+        throwsArgumentError,
+      );
     });
 
     test('reports frames and duration', () {
@@ -20,17 +29,31 @@ void main() {
     });
   });
 
-  test('PcmAsr rejects segments longer than maxSegment before any native call', () async {
-    final asr = const PcmAsr();
-    await expectLater(
-      asr.transcribe(TranscribeRequest(
-        id: 'too-long',
-        locale: 'ja-JP',
-        audio: PcmSegment(pcm16le: Uint8List(16000 * 2 * 61), sampleRate: 16000),
-      )),
-      throwsA(isA<PcmAsrException>().having((e) => e.code, 'code', PcmAsrErrorCode.invalidPcm)),
-    );
-  });
+  test(
+    'PcmAsr rejects segments longer than maxSegment before any native call',
+    () async {
+      final asr = const PcmAsr();
+      await expectLater(
+        asr.transcribe(
+          TranscribeRequest(
+            id: 'too-long',
+            locale: 'ja-JP',
+            audio: PcmSegment(
+              pcm16le: Uint8List(16000 * 2 * 61),
+              sampleRate: 16000,
+            ),
+          ),
+        ),
+        throwsA(
+          isA<PcmAsrException>().having(
+            (e) => e.code,
+            'code',
+            PcmAsrErrorCode.invalidPcm,
+          ),
+        ),
+      );
+    },
+  );
 
   group('MethodChannelPcmAsr', () {
     final platform = MethodChannelPcmAsr();
@@ -41,23 +64,23 @@ void main() {
       calls.clear();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(platform.methodChannel, (call) async {
-        calls.add(call);
-        return handler?.call(call);
-      });
+            calls.add(call);
+            return handler?.call(call);
+          });
     });
 
     test('support maps every field', () async {
       handler = (_) => {
-            'engine': 'apple.speech-analyzer',
-            'supported': true,
-            'accepts_external_pcm': true,
-            'on_device': true,
-            'model_state': 'installed',
-            'locale': 'ja-JP',
-            'sample_rates': [16000],
-            'needs_network_for_model': true,
-            'reason': null,
-          };
+        'engine': 'apple.speech-analyzer',
+        'supported': true,
+        'accepts_external_pcm': true,
+        'on_device': true,
+        'model_state': 'installed',
+        'locale': 'ja-JP',
+        'sample_rates': [16000],
+        'needs_network_for_model': true,
+        'reason': null,
+      };
       final s = await platform.support(locale: 'ja-JP');
       expect(s.supported, isTrue);
       expect(s.modelState, ModelState.installed);
@@ -67,21 +90,23 @@ void main() {
 
     test('transcribe passes the PCM and echoes the id', () async {
       handler = (call) => {
-            'id': call.arguments['id'],
-            'text': 'こんにちは',
-            'engine': 'apple.speech-analyzer',
-            'locale': 'ja-JP',
-            'elapsed_ms': 12.5,
-            'ranges': [
-              {'text': 'こんにちは', 'start': 0.0, 'end': 0.8}
-            ],
-          };
+        'id': call.arguments['id'],
+        'text': 'こんにちは',
+        'engine': 'apple.speech-analyzer',
+        'locale': 'ja-JP',
+        'elapsed_ms': 12.5,
+        'ranges': [
+          {'text': 'こんにちは', 'start': 0.0, 'end': 0.8},
+        ],
+      };
       final pcm = Uint8List.fromList(List.filled(3200, 1));
-      final r = await platform.transcribe(TranscribeRequest(
-        id: 'seg-1',
-        locale: 'ja-JP',
-        audio: PcmSegment(pcm16le: pcm, sampleRate: 16000),
-      ));
+      final r = await platform.transcribe(
+        TranscribeRequest(
+          id: 'seg-1',
+          locale: 'ja-JP',
+          audio: PcmSegment(pcm16le: pcm, sampleRate: 16000),
+        ),
+      );
       expect(r.id, 'seg-1');
       expect(r.text, 'こんにちは');
       expect(r.elapsed, const Duration(microseconds: 12500));
@@ -93,40 +118,67 @@ void main() {
     });
 
     test('platform errors become PcmAsrException with the same code', () async {
-      handler = (_) => throw PlatformException(code: 'unsupportedLocale', message: 'no xx-XX');
+      handler = (_) => throw PlatformException(
+        code: 'unsupportedLocale',
+        message: 'no xx-XX',
+      );
       await expectLater(
-        platform.transcribe(TranscribeRequest(
-          id: 'x',
-          locale: 'xx-XX',
-          audio: PcmSegment(pcm16le: Uint8List(2), sampleRate: 16000),
-        )),
-        throwsA(isA<PcmAsrException>().having((e) => e.code, 'code', PcmAsrErrorCode.unsupportedLocale)),
+        platform.transcribe(
+          TranscribeRequest(
+            id: 'x',
+            locale: 'xx-XX',
+            audio: PcmSegment(pcm16le: Uint8List(2), sampleRate: 16000),
+          ),
+        ),
+        throwsA(
+          isA<PcmAsrException>().having(
+            (e) => e.code,
+            'code',
+            PcmAsrErrorCode.unsupportedLocale,
+          ),
+        ),
       );
     });
 
     test('timeout cancels the request natively', () async {
       handler = (call) {
-        if (call.method == 'transcribe') return Future<Object?>.delayed(const Duration(seconds: 5));
+        if (call.method == 'transcribe')
+          return Future<Object?>.delayed(const Duration(seconds: 5));
         return const <String, Object?>{};
       };
       await expectLater(
-        platform.transcribe(TranscribeRequest(
-          id: 'slow',
-          locale: 'ja-JP',
-          audio: PcmSegment(pcm16le: Uint8List(2), sampleRate: 16000),
-          timeout: const Duration(milliseconds: 20),
-        )),
-        throwsA(isA<PcmAsrException>().having((e) => e.code, 'code', PcmAsrErrorCode.timeout)),
+        platform.transcribe(
+          TranscribeRequest(
+            id: 'slow',
+            locale: 'ja-JP',
+            audio: PcmSegment(pcm16le: Uint8List(2), sampleRate: 16000),
+            timeout: const Duration(milliseconds: 20),
+          ),
+        ),
+        throwsA(
+          isA<PcmAsrException>().having(
+            (e) => e.code,
+            'code',
+            PcmAsrErrorCode.timeout,
+          ),
+        ),
       );
       expect(calls.map((c) => c.method), ['transcribe', 'cancel']);
       expect(calls.last.arguments, {'id': 'slow'});
     });
 
     test('missing plugin reports unsupportedPlatform', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(platform.methodChannel, null);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(platform.methodChannel, null);
       await expectLater(
         platform.support(locale: 'ja-JP'),
-        throwsA(isA<PcmAsrException>().having((e) => e.code, 'code', PcmAsrErrorCode.unsupportedPlatform)),
+        throwsA(
+          isA<PcmAsrException>().having(
+            (e) => e.code,
+            'code',
+            PcmAsrErrorCode.unsupportedPlatform,
+          ),
+        ),
       );
     });
   });

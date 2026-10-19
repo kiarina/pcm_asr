@@ -28,25 +28,34 @@ class MethodChannelPcmAsr extends PcmAsrPlatform {
       supported: map['supported'] as bool? ?? false,
       acceptsExternalPcm: map['accepts_external_pcm'] as bool? ?? false,
       onDevice: map['on_device'] as bool? ?? false,
-      modelState: ModelState.values.byName(map['model_state'] as String? ?? 'unknown'),
+      modelState: ModelState.values.byName(
+        map['model_state'] as String? ?? 'unknown',
+      ),
       locale: map['locale'] as String?,
-      sampleRates: [for (final r in (map['sample_rates'] as List?) ?? const []) r as int],
+      sampleRates: [
+        for (final r in (map['sample_rates'] as List?) ?? const []) r as int,
+      ],
       needsNetworkForModel: map['needs_network_for_model'] as bool? ?? false,
       reason: map['reason'] as String?,
     );
   }
 
   @override
-  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) async {
+  Future<void> prepare({
+    required String locale,
+    void Function(PrepareProgress progress)? onProgress,
+  }) async {
     StreamSubscription<Object?>? subscription;
     if (onProgress != null) {
       subscription = progressChannel.receiveBroadcastStream().listen((event) {
         if (event is! Map) return;
-        onProgress(PrepareProgress(
-          stage: event['stage'] as String? ?? 'unknown',
-          completed: (event['completed'] as num?)?.toDouble(),
-          total: (event['total'] as num?)?.toDouble(),
-        ));
+        onProgress(
+          PrepareProgress(
+            stage: event['stage'] as String? ?? 'unknown',
+            completed: (event['completed'] as num?)?.toDouble(),
+            total: (event['total'] as num?)?.toDouble(),
+          ),
+        );
       }, onError: (Object _) {});
     }
     try {
@@ -106,12 +115,22 @@ class MethodChannelPcmAsr extends PcmAsrPlatform {
     await _invoke('dispose', const {});
   }
 
-  Future<Map<Object?, Object?>> _invoke(String method, Map<String, Object?> args) async {
+  Future<Map<Object?, Object?>> _invoke(
+    String method,
+    Map<String, Object?> args,
+  ) async {
     try {
-      final reply = await methodChannel.invokeMethod<Map<Object?, Object?>>(method, args);
+      final reply = await methodChannel.invokeMethod<Map<Object?, Object?>>(
+        method,
+        args,
+      );
       return reply ?? const {};
     } on PlatformException catch (e) {
-      throw PcmAsrException(_code(e.code), e.message ?? e.code, details: e.details);
+      throw PcmAsrException(
+        _code(e.code),
+        e.message ?? e.code,
+        details: e.details,
+      );
     } on MissingPluginException {
       throw const PcmAsrException(
         PcmAsrErrorCode.unsupportedPlatform,

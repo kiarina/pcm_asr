@@ -64,7 +64,8 @@ class PcmAsrWeb extends PcmAsrPlatform {
 
   final _running = <String, _Running>{};
 
-  JSFunction? get _ctor => _speechRecognitionCtor ?? _webkitSpeechRecognitionCtor;
+  JSFunction? get _ctor =>
+      _speechRecognitionCtor ?? _webkitSpeechRecognitionCtor;
 
   /// `start(track)` shipped in desktop Chrome/Edge 135 (research/web.md).
   /// The JS function's `length` is 0 because the parameter is optional, so
@@ -107,10 +108,17 @@ class PcmAsrWeb extends PcmAsrPlatform {
     var onDevice = false;
     try {
       final statics = ctor as _RecognitionStatic;
-      final local = (await statics
-              .available({'langs': [locale].jsify(), 'processLocally': true}.jsify() as JSObject)
-              .toDart)
-          .toDart;
+      final local =
+          (await statics
+                  .available(
+                    {
+                          'langs': [locale].jsify(),
+                          'processLocally': true,
+                        }.jsify()
+                        as JSObject,
+                  )
+                  .toDart)
+              .toDart;
       modelState = switch (local) {
         'available' => ModelState.installed,
         'downloadable' => ModelState.downloadable,
@@ -141,10 +149,17 @@ class PcmAsrWeb extends PcmAsrPlatform {
     if (cached != null) return cached;
     try {
       final statics = _ctor! as _RecognitionStatic;
-      final value = (await statics
-              .available({'langs': [locale].jsify(), 'processLocally': false}.jsify() as JSObject)
-              .toDart)
-          .toDart;
+      final value =
+          (await statics
+                  .available(
+                    {
+                          'langs': [locale].jsify(),
+                          'processLocally': false,
+                        }.jsify()
+                        as JSObject,
+                  )
+                  .toDart)
+              .toDart;
       _availability[locale] = value;
       return value;
     } catch (_) {
@@ -153,7 +168,10 @@ class PcmAsrWeb extends PcmAsrPlatform {
   }
 
   @override
-  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) async {
+  Future<void> prepare({
+    required String locale,
+    void Function(PrepareProgress progress)? onProgress,
+  }) async {
     // No automatic model install: `install()` downloads about 60 MB into
     // the user's browser and prompts. The app decides; cloud works as is.
   }
@@ -161,10 +179,16 @@ class PcmAsrWeb extends PcmAsrPlatform {
   @override
   Future<TranscribeResult> transcribe(TranscribeRequest request) async {
     if (!_hasTrackInput) {
-      throw const PcmAsrException(PcmAsrErrorCode.unsupportedPlatform, 'this browser cannot take a track as input');
+      throw const PcmAsrException(
+        PcmAsrErrorCode.unsupportedPlatform,
+        'this browser cannot take a track as input',
+      );
     }
     if (_running.containsKey(request.id)) {
-      throw PcmAsrException(PcmAsrErrorCode.engineFailure, 'request id already running: ${request.id}');
+      throw PcmAsrException(
+        PcmAsrErrorCode.engineFailure,
+        'request id already running: ${request.id}',
+      );
     }
     // Registered before the first await so that cancel() can reach it.
     final completer = Completer<TranscribeResult>();
@@ -177,10 +201,17 @@ class PcmAsrWeb extends PcmAsrPlatform {
     }
   }
 
-  Future<TranscribeResult> _transcribe(TranscribeRequest request, _Running running, Completer<TranscribeResult> completer) async {
+  Future<TranscribeResult> _transcribe(
+    TranscribeRequest request,
+    _Running running,
+    Completer<TranscribeResult> completer,
+  ) async {
     final availability = await _availabilityOf(request.locale);
     if (availability == 'unavailable') {
-      throw PcmAsrException(PcmAsrErrorCode.unsupportedLocale, 'the browser reports ${request.locale} as unavailable');
+      throw PcmAsrException(
+        PcmAsrErrorCode.unsupportedLocale,
+        'the browser reports ${request.locale} as unavailable',
+      );
     }
     final audio = request.audio;
     final frames = audio.frameCount;
@@ -198,8 +229,14 @@ class PcmAsrWeb extends PcmAsrPlatform {
     // lab, so a short silent tail is appended before stop().
     final tail = (audio.sampleRate * tailSilence.inMilliseconds) ~/ 1000;
     final lead = (audio.sampleRate * leadSilence.inMilliseconds) ~/ 1000;
-    final context = web.AudioContext(web.AudioContextOptions(sampleRate: audio.sampleRate));
-    final buffer = context.createBuffer(1, lead + frames + tail, audio.sampleRate);
+    final context = web.AudioContext(
+      web.AudioContextOptions(sampleRate: audio.sampleRate),
+    );
+    final buffer = context.createBuffer(
+      1,
+      lead + frames + tail,
+      audio.sampleRate,
+    );
     buffer.copyToChannel(samples.toJS, 0, lead);
     final source = context.createBufferSource();
     source.buffer = buffer;
@@ -215,7 +252,11 @@ class PcmAsrWeb extends PcmAsrPlatform {
     rec.interimResults = true;
     rec.maxAlternatives = 1;
     running.rec = rec;
-    if (running.cancelled) throw PcmAsrException(PcmAsrErrorCode.cancelled, 'cancelled: ${request.id}');
+    if (running.cancelled)
+      throw PcmAsrException(
+        PcmAsrErrorCode.cancelled,
+        'cancelled: ${request.id}',
+      );
     final started = DateTime.now();
     var finalText = '';
     var lastInterim = '';
@@ -244,17 +285,21 @@ class PcmAsrWeb extends PcmAsrPlatform {
         _ => PcmAsrErrorCode.engineFailure,
       };
       if (code == null) return; // ends with empty text
-      completer.completeError(PcmAsrException(code, 'SpeechRecognition error: ${e.error}'));
+      completer.completeError(
+        PcmAsrException(code, 'SpeechRecognition error: ${e.error}'),
+      );
     }).toJS;
     rec.onend = ((JSAny? _) {
       if (completer.isCompleted) return;
-      completer.complete(TranscribeResult(
-        id: request.id,
-        text: finalText.isNotEmpty ? finalText : lastInterim,
-        engine: engineId,
-        locale: request.locale,
-        elapsed: DateTime.now().difference(started),
-      ));
+      completer.complete(
+        TranscribeResult(
+          id: request.id,
+          text: finalText.isNotEmpty ? finalText : lastInterim,
+          engine: engineId,
+          locale: request.locale,
+          elapsed: DateTime.now().difference(started),
+        ),
+      );
     }).toJS;
     source.onended = ((JSAny? _) {
       // The recognizer never finalizes on its own; ask for the final result.
@@ -277,7 +322,9 @@ class PcmAsrWeb extends PcmAsrPlatform {
     if (r == null) return;
     r.cancelled = true;
     if (!r.completer.isCompleted) {
-      r.completer.completeError(PcmAsrException(PcmAsrErrorCode.cancelled, 'cancelled: $id'));
+      r.completer.completeError(
+        PcmAsrException(PcmAsrErrorCode.cancelled, 'cancelled: $id'),
+      );
     }
     try {
       r.rec?.abort();

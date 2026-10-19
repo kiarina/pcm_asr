@@ -1,12 +1,17 @@
 name: pcm_asr
 description: >-
-  Final transcription of finalized PCM segments with the OS speech engine.
-  The caller owns the microphone; this plugin only turns one finished
-  segment into final text. (Working name; not published.)
-version: 0.0.1
+  Final transcription of finalized PCM segments with the OS speech engine
+  (SpeechAnalyzer, Android SpeechRecognizer, Web Speech) or whisper.cpp on Windows.
+version: 0.1.0
 publish_to: none
 repository: https://github.com/kiarina/pcm_asr
 issue_tracker: https://github.com/kiarina/pcm_asr/issues
+topics:
+  - speech-recognition
+  - speech-to-text
+  - asr
+  - audio
+  - whisper
 
 environment:
   sdk: ^3.13.2

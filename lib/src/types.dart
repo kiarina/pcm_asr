@@ -13,7 +13,9 @@ class PcmSegment {
   }) {
     if (pcm16le.isEmpty) throw ArgumentError('pcm16le is empty');
     if (pcm16le.length % (2 * channels) != 0) {
-      throw ArgumentError('pcm16le must hold whole frames of $channels channel(s)');
+      throw ArgumentError(
+        'pcm16le must hold whole frames of $channels channel(s)',
+      );
     }
     if (sampleRate <= 0) throw ArgumentError('sampleRate must be positive');
     if (channels < 1) throw ArgumentError('channels must be at least 1');
@@ -30,7 +32,8 @@ class PcmSegment {
 
   int get frameCount => pcm16le.length ~/ (2 * channels);
 
-  Duration get duration => Duration(microseconds: frameCount * 1000000 ~/ sampleRate);
+  Duration get duration =>
+      Duration(microseconds: frameCount * 1000000 ~/ sampleRate);
 }
 
 /// One request: a segment, the language, and the caller's correlation ID.
@@ -59,7 +62,11 @@ class TranscribeRequest {
 
 /// A time range inside the request's audio, in seconds from its start.
 class TranscribedRange {
-  const TranscribedRange({required this.text, required this.start, required this.end});
+  const TranscribedRange({
+    required this.text,
+    required this.start,
+    required this.end,
+  });
 
   final String text;
   final double start;
@@ -98,13 +105,13 @@ class TranscribeResult {
   final List<TranscribedRange> ranges;
 
   Map<String, Object?> toJson() => {
-        'id': id,
-        'text': text,
-        'engine': engine,
-        'locale': locale,
-        'elapsed_ms': elapsed.inMilliseconds,
-        'ranges': [for (final r in ranges) r.toJson()],
-      };
+    'id': id,
+    'text': text,
+    'engine': engine,
+    'locale': locale,
+    'elapsed_ms': elapsed.inMilliseconds,
+    'ranges': [for (final r in ranges) r.toJson()],
+  };
 }
 
 /// Progress of [PcmAsr.prepare]: a model download, its installation, the
@@ -119,10 +126,13 @@ class PrepareProgress {
   final double? completed;
   final double? total;
 
-  double? get fraction => (completed != null && total != null && total! > 0) ? completed! / total! : null;
+  double? get fraction => (completed != null && total != null && total! > 0)
+      ? completed! / total!
+      : null;
 
   @override
-  String toString() => 'PrepareProgress($stage ${fraction == null ? '' : '${(fraction! * 100).toStringAsFixed(0)}%'})';
+  String toString() =>
+      'PrepareProgress($stage ${fraction == null ? '' : '${(fraction! * 100).toStringAsFixed(0)}%'})';
 }
 
 /// Whether and how the engine's language model is present.
@@ -189,16 +199,16 @@ class RecognitionSupport {
   final String? reason;
 
   Map<String, Object?> toJson() => {
-        'engine': engine,
-        'supported': supported,
-        'accepts_external_pcm': acceptsExternalPcm,
-        'on_device': onDevice,
-        'model_state': modelState.name,
-        'locale': locale,
-        'sample_rates': sampleRates,
-        'needs_network_for_model': needsNetworkForModel,
-        'reason': reason,
-      };
+    'engine': engine,
+    'supported': supported,
+    'accepts_external_pcm': acceptsExternalPcm,
+    'on_device': onDevice,
+    'model_state': modelState.name,
+    'locale': locale,
+    'sample_rates': sampleRates,
+    'needs_network_for_model': needsNetworkForModel,
+    'reason': reason,
+  };
 }
 
 enum PcmAsrErrorCode {
