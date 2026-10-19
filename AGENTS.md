@@ -49,3 +49,6 @@
 
 pub.dev への公開は取り消せない（discontinue しかできない）。公開の前に名前・version・公開内容・対応範囲をオーナーに示し、
 `flutter pub publish --dry-run` の結果を見せる。`publish_to: none` は公開の直前まで外さない。
+**`.pubignore` があると `.gitignore` は見られない。** build の生成物も `.pubignore` に書く。0.1.0 はこれを忘れて 28 MB の archive に
+`build/` が入った（0.1.1 で同じソースを出し直した。2026-10-20）。dry-run は commit 直前の作業ツリーで、`Total compressed archive size` を見る。
+publisher は `kiarina.dev`（pub.dev のサイトで付ける）。
