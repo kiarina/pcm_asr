@@ -19,9 +19,10 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      # The root analyze also sees example/, whose pubspec lists the fixture asset directory.
+      - run: mkdir -p example/assets/segments && echo '[]' > example/assets/segments/segments.json
       - run: flutter analyze
       - run: flutter test
-      - run: mkdir -p example/assets/segments && echo '[]' > example/assets/segments/segments.json
       - run: cd example && flutter pub get && flutter analyze
 
   build-android-web:

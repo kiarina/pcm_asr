@@ -38,6 +38,8 @@ Platform setup:
 - **Windows**: Visual Studio C++ tools (CMake 3.24+ for the source fetch). The first build downloads the pinned
   whisper.cpp sources and builds them under `%LOCALAPPDATA%\pcm_asr` (`PCM_ASR_WORK` moves it); install the
   Vulkan SDK (`VULKAN_SDK` set when building) for the GPU backend, `PCM_ASR_VULKAN=0` for a CPU-only DLL.
+  An app that already builds its own whisper.cpp (for example through another plugin) cannot build this one
+  next to it: the CMake targets `whisper` and `ggml` would be defined twice.
   The first `prepare()` downloads the model (574 MB for large-v3-turbo q5_0, 488 MB for small);
   `support().modelBytes` says how much before you start.
 

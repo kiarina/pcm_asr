@@ -37,7 +37,8 @@
 - Windows の build: `src/CMakeLists.txt` が Vulkan SDK（`VULKAN_SDK`）を見つけると `GGML_VULKAN=ON`（DLL は約 47 MB、無いと CPU のみで 1.6 MB）。
   ggml のシェーダー生成（ExternalProject）は深い build ディレクトリで MSBuild の MAX_PATH を超えて `MSB4184` で落ちるので、
   Windows では whisper の取得先と build 先を `%LOCALAPPDATA%\pcm_asr`（`PCM_ASR_WORK`）に置く（0.1.2。`third_party/whisper.cpp` が無ければ
-  CMake の FetchContent が tag と SHA-256 で取る。利用者の手作業は無い）
+  CMake の FetchContent が tag と SHA-256 で取る。利用者の手作業は無い）。同じアプリが別の plugin で whisper.cpp を build していると
+  `whisper`・`ggml` の target が二重になって build できない（Spirits Garden の試作は自前の whisper_cpp を Windows では外した。2026-10-20）
 
 ## 検証
 
