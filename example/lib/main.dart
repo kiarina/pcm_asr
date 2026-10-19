@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show File, FileMode, exit, stdout;
+import 'dart:io' show File, FileMode, ProcessInfo, exit, stdout;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -26,6 +26,10 @@ const whisperGpu = String.fromEnvironment('PCM_ASR_WHISPER_GPU');
 
 /// Also append every line to this file (Windows GUI apps have no stdout).
 const logFile = String.fromEnvironment('PCM_ASR_LOG_FILE');
+
+/// `--dart-define=PCM_ASR_SOAK=200`: after the checks, run this many
+/// requests back to back and report memory and timing.
+const soakRequests = int.fromEnvironment('PCM_ASR_SOAK');
 
 void main() => runApp(const MaterialApp(home: FixturePage()));
 
@@ -88,8 +92,12 @@ class _FixturePageState extends State<FixturePage> {
         return;
       }
       final prepareStart = DateTime.now();
-      await asr.prepare(locale: locale);
-      log('prepare', {'ms': DateTime.now().difference(prepareStart).inMilliseconds, 'model_state_before': support.modelState.name});
+      final progress = <String>[];
+      await asr.prepare(locale: locale, onProgress: (p) {
+        if (progress.isEmpty || !progress.last.startsWith(p.stage)) progress.add(p.toString());
+        if (p.fraction == 1) progress.add(p.toString());
+      });
+      log('prepare', {'ms': DateTime.now().difference(prepareStart).inMilliseconds, 'model_state_before': support.modelState.name, 'progress': progress});
 
       final manifest = jsonDecode(await rootBundle.loadString('assets/segments/segments.json')) as List;
       final segments = <(Map<String, Object?>, Uint8List)>[];
@@ -159,6 +167,7 @@ class _FixturePageState extends State<FixturePage> {
         log('error_check', {'case': 'silence', 'ok': false, 'code': e.code.name, 'message': e.message});
       }
       await robustness(segments);
+      if (soakRequests > 0) await soak(segments);
       await asr.dispose();
       ok = true;
     } catch (e, st) {
@@ -171,6 +180,36 @@ class _FixturePageState extends State<FixturePage> {
         exit(ok ? 0 : 1);
       }
     }
+  }
+
+  /// Many requests back to back: memory must not grow with the count.
+  Future<void> soak(List<(Map<String, Object?>, Uint8List)> segments) async {
+    int? rss() => kIsWeb ? null : ProcessInfo.currentRss;
+    final before = rss();
+    final elapsed = <int>[];
+    var failures = 0;
+    final started = DateTime.now();
+    for (var i = 0; i < soakRequests; i++) {
+      final (_, pcm) = segments[i % segments.length];
+      try {
+        final r = await asr.transcribe(TranscribeRequest(id: 'soak-$i', locale: locale, audio: PcmSegment(pcm16le: pcm, sampleRate: 16000)));
+        elapsed.add(r.elapsed.inMilliseconds);
+        if (r.text.isEmpty) failures++;
+      } on PcmAsrException {
+        failures++;
+      }
+    }
+    final after = rss();
+    elapsed.sort();
+    log('soak', {
+      'requests': soakRequests,
+      'failures': failures,
+      'seconds': DateTime.now().difference(started).inMilliseconds / 1000,
+      'median_ms': elapsed.isEmpty ? null : elapsed[elapsed.length ~/ 2],
+      'p95_ms': elapsed.isEmpty ? null : elapsed[(elapsed.length * 0.95).floor().clamp(0, elapsed.length - 1)],
+      'rss_before_mb': before == null ? null : before / 1048576,
+      'rss_after_mb': after == null ? null : after / 1048576,
+    });
   }
 
   /// Edge cases the contract promises: very short and long input, concurrent

@@ -7,8 +7,9 @@ import Foundation
 
 /// Method channel `pcm_asr`. Every reply is a map; every failure is a
 /// FlutterError whose code is one of the Dart `PcmAsrErrorCode` names.
-public class PcmAsrPlugin: NSObject, FlutterPlugin {
+public class PcmAsrPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   private let engine = SpeechAnalyzerEngine()
+  private var progressSink: FlutterEventSink?
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     #if os(iOS)
@@ -19,6 +20,22 @@ public class PcmAsrPlugin: NSObject, FlutterPlugin {
     let channel = FlutterMethodChannel(name: "pcm_asr", binaryMessenger: messenger)
     let instance = PcmAsrPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+    let progress = FlutterEventChannel(name: "pcm_asr/prepare_progress", binaryMessenger: messenger)
+    progress.setStreamHandler(instance)
+  }
+
+  public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+    progressSink = events
+    return nil
+  }
+
+  public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    progressSink = nil
+    return nil
+  }
+
+  private func emitProgress(_ event: [String: Any]) {
+    DispatchQueue.main.async { [weak self] in self?.progressSink?(event) }
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -30,7 +47,7 @@ public class PcmAsrPlugin: NSObject, FlutterPlugin {
           let support = await engine.support(locale: args["locale"] as? String ?? "")
           await reply(result, support)
         case "prepare":
-          try await engine.prepare(locale: args["locale"] as? String ?? "")
+          try await engine.prepare(locale: args["locale"] as? String ?? "") { [weak self] event in self?.emitProgress(event) }
           await reply(result, [:])
         case "transcribe":
           guard let id = args["id"] as? String,

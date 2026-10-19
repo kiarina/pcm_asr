@@ -118,23 +118,25 @@ class PcmAsrWindows extends PcmAsrPlatform {
   }
 
   @override
-  Future<void> prepare({required String locale}) async {
+  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) async {
     if (languageOf(locale) == null) {
       throw PcmAsrException(PcmAsrErrorCode.unsupportedLocale, 'whisper has no language for $locale');
     }
     final file = await _modelFile();
     final wanted = effectiveModel;
     if (!(await file.exists() && await file.length() == wanted.bytes)) {
-      await _download(file, wanted);
+      await _download(file, wanted, onProgress);
     }
     if (_engine != null && _loaded != wanted) {
       await _engine!.dispose();
       _engine = null;
     }
     if (_engine == null) {
+      onProgress?.call(const PrepareProgress(stage: 'load'));
       _engine = await WhisperEngine.load(path: file.path, useGpu: useGpu);
       _loaded = wanted;
       if (warmUp) {
+        onProgress?.call(const PrepareProgress(stage: 'warmup'));
         // 0.5 s of faint noise: enough to build the pipelines, discarded.
         final noise = Float32List(8000);
         var seed = 12345;
@@ -149,7 +151,7 @@ class PcmAsrWindows extends PcmAsrPlatform {
     }
   }
 
-  Future<void> _download(File file, WhisperModel model) async {
+  Future<void> _download(File file, WhisperModel model, void Function(PrepareProgress progress)? onProgress) async {
     await file.parent.create(recursive: true);
     final part = File('${file.path}.part');
     final client = HttpClient();
@@ -160,10 +162,20 @@ class PcmAsrWindows extends PcmAsrPlatform {
         throw PcmAsrException(PcmAsrErrorCode.modelUnavailable, 'GET ${model.url} -> ${response.statusCode}');
       }
       final sink = part.openWrite();
+      var received = 0;
+      var lastReport = 0;
+      final total = (response.contentLength > 0 ? response.contentLength : model.bytes).toDouble();
+      onProgress?.call(PrepareProgress(stage: 'download', completed: 0, total: total));
       await for (final chunk in response) {
         sink.add(chunk);
+        received += chunk.length;
+        if (received - lastReport >= 1 << 20) {
+          lastReport = received;
+          onProgress?.call(PrepareProgress(stage: 'download', completed: received.toDouble(), total: total));
+        }
       }
       await sink.close();
+      onProgress?.call(PrepareProgress(stage: 'download', completed: received.toDouble(), total: total));
       final got = (await sha256.bind(part.openRead()).first).toString();
       if (got != model.sha256) {
         await part.delete();

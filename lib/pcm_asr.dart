@@ -24,13 +24,26 @@ class PcmAsr {
 
   /// Gets the engine ready for [locale]. May download a model when
   /// [RecognitionSupport.modelState] is [ModelState.downloadable]; nothing is
-  /// downloaded without this call.
-  Future<void> prepare({required String locale}) =>
-      PcmAsrPlatform.instance.prepare(locale: locale);
+  /// downloaded without this call. [onProgress] receives download, install,
+  /// load and warm-up progress where the engine reports it.
+  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) =>
+      PcmAsrPlatform.instance.prepare(locale: locale, onProgress: onProgress);
+
+  /// Longest segment [transcribe] accepts. Whisper decodes in 30 s windows
+  /// and Android's recognizer restarts its hypothesis on long input, so a
+  /// caller that owns the segmentation should stay well below this.
+  static Duration maxSegment = const Duration(seconds: 60);
 
   /// Transcribes one finalized segment and returns its final text.
-  Future<TranscribeResult> transcribe(TranscribeRequest request) =>
-      PcmAsrPlatform.instance.transcribe(request);
+  Future<TranscribeResult> transcribe(TranscribeRequest request) {
+    if (request.audio.duration > maxSegment) {
+      return Future.error(PcmAsrException(
+        PcmAsrErrorCode.invalidPcm,
+        'segment of ${request.audio.duration.inMilliseconds} ms exceeds maxSegment (${maxSegment.inMilliseconds} ms)',
+      ));
+    }
+    return PcmAsrPlatform.instance.transcribe(request);
+  }
 
   /// Stops the request with [id] if it is still running. Its future completes
   /// with [PcmAsrErrorCode.cancelled].

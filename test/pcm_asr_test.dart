@@ -20,6 +20,18 @@ void main() {
     });
   });
 
+  test('PcmAsr rejects segments longer than maxSegment before any native call', () async {
+    final asr = const PcmAsr();
+    await expectLater(
+      asr.transcribe(TranscribeRequest(
+        id: 'too-long',
+        locale: 'ja-JP',
+        audio: PcmSegment(pcm16le: Uint8List(16000 * 2 * 61), sampleRate: 16000),
+      )),
+      throwsA(isA<PcmAsrException>().having((e) => e.code, 'code', PcmAsrErrorCode.invalidPcm)),
+    );
+  });
+
   group('MethodChannelPcmAsr', () {
     final platform = MethodChannelPcmAsr();
     final calls = <MethodCall>[];

@@ -15,6 +15,11 @@ class MethodChannelPcmAsr extends PcmAsrPlatform {
   @visibleForTesting
   final methodChannel = const MethodChannel('pcm_asr');
 
+  /// Native engines report prepare() progress here as maps
+  /// {stage, completed, total} while a prepare call is running.
+  @visibleForTesting
+  final progressChannel = const EventChannel('pcm_asr/prepare_progress');
+
   @override
   Future<RecognitionSupport> support({required String locale}) async {
     final map = await _invoke('support', {'locale': locale});
@@ -32,8 +37,23 @@ class MethodChannelPcmAsr extends PcmAsrPlatform {
   }
 
   @override
-  Future<void> prepare({required String locale}) async {
-    await _invoke('prepare', {'locale': locale});
+  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) async {
+    StreamSubscription<Object?>? subscription;
+    if (onProgress != null) {
+      subscription = progressChannel.receiveBroadcastStream().listen((event) {
+        if (event is! Map) return;
+        onProgress(PrepareProgress(
+          stage: event['stage'] as String? ?? 'unknown',
+          completed: (event['completed'] as num?)?.toDouble(),
+          total: (event['total'] as num?)?.toDouble(),
+        ));
+      }, onError: (Object _) {});
+    }
+    try {
+      await _invoke('prepare', {'locale': locale});
+    } finally {
+      await subscription?.cancel();
+    }
   }
 
   @override

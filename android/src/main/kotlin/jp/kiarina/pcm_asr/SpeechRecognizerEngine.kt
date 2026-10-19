@@ -140,7 +140,7 @@ class SpeechRecognizerEngine(private val context: Context) {
       ?: all.firstOrNull { it.substringBefore('-').equals(norm.substringBefore('-'), true) }
   }
 
-  fun prepare(locale: String, reply: Reply) {
+  fun prepare(locale: String, reply: Reply, progress: ((Map<String, Any?>) -> Unit)? = null) {
     if (Build.VERSION.SDK_INT < 33) { reply.error("unsupportedPlatform", "SpeechRecognizer EXTRA_AUDIO_SOURCE needs API 33"); return }
     main.post {
       val probe = try {
@@ -160,17 +160,18 @@ class SpeechRecognizerEngine(private val context: Context) {
           }
           // The listener is unreliable on Pixel (only onScheduled seen); poll checkRecognitionSupport.
           main.post {
+            progress?.invoke(mapOf("stage" to "download", "completed" to 0.0, "total" to 100.0))
             if (Build.VERSION.SDK_INT >= 34) {
               probe.triggerModelDownload(intentFor(tag, null), executor, object : ModelDownloadListener {
-                override fun onProgress(completedPercent: Int) {}
-                override fun onSuccess() {}
+                override fun onProgress(completedPercent: Int) { progress?.invoke(mapOf("stage" to "download", "completed" to completedPercent.toDouble(), "total" to 100.0)) }
+                override fun onSuccess() { progress?.invoke(mapOf("stage" to "download", "completed" to 100.0, "total" to 100.0)) }
                 override fun onScheduled() {}
                 override fun onError(error: Int) {}
               })
             } else {
               probe.triggerModelDownload(intentFor(tag, null))
             }
-            pollInstalled(probe, tag, executor, reply, deadline = SystemClock.elapsedRealtime() + 180_000)
+            pollInstalled(probe, tag, executor, reply, deadline = SystemClock.elapsedRealtime() + 180_000, progress = progress)
           }
         }
         override fun onError(error: Int) { main.post { probe.destroy() }; reply.error("engineFailure", "checkRecognitionSupport error $error") }
@@ -178,13 +179,14 @@ class SpeechRecognizerEngine(private val context: Context) {
     }
   }
 
-  private fun pollInstalled(probe: SpeechRecognizer, tag: String, executor: java.util.concurrent.Executor, reply: Reply, deadline: Long) {
+  private fun pollInstalled(probe: SpeechRecognizer, tag: String, executor: java.util.concurrent.Executor, reply: Reply, deadline: Long, progress: ((Map<String, Any?>) -> Unit)? = null) {
     main.postDelayed({
+      progress?.invoke(mapOf("stage" to "install"))
       probe.checkRecognitionSupport(intentFor(tag, null), executor, object : RecognitionSupportCallback {
         override fun onSupportResult(support: RecognitionSupport) {
           if (support.installedOnDeviceLanguages.any { it.equals(tag, true) }) { main.post { probe.destroy() }; reply.success(emptyMap()) }
           else if (SystemClock.elapsedRealtime() > deadline) { main.post { probe.destroy() }; reply.error("modelUnavailable", "$tag did not finish installing in time") }
-          else pollInstalled(probe, tag, executor, reply, deadline)
+          else pollInstalled(probe, tag, executor, reply, deadline, progress)
         }
         override fun onError(error: Int) { main.post { probe.destroy() }; reply.error("engineFailure", "checkRecognitionSupport error $error") }
       })

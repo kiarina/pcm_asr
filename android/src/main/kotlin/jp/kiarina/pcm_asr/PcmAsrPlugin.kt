@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -11,8 +12,10 @@ import io.flutter.plugin.common.MethodChannel
  * Method channel `pcm_asr`. Every reply is a map; every failure is an error
  * whose code is one of the Dart `PcmAsrErrorCode` names.
  */
-class PcmAsrPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class PcmAsrPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
   private lateinit var channel: MethodChannel
+  private lateinit var progressChannel: EventChannel
+  private var progressSink: EventChannel.EventSink? = null
   private lateinit var context: Context
   private var engine: SpeechRecognizerEngine? = null
   private val main = Handler(Looper.getMainLooper())
@@ -21,10 +24,19 @@ class PcmAsrPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     context = binding.applicationContext
     channel = MethodChannel(binding.binaryMessenger, "pcm_asr")
     channel.setMethodCallHandler(this)
+    progressChannel = EventChannel(binding.binaryMessenger, "pcm_asr/prepare_progress")
+    progressChannel.setStreamHandler(this)
   }
+
+  override fun onListen(arguments: Any?, events: EventChannel.EventSink?) { progressSink = events }
+
+  override fun onCancel(arguments: Any?) { progressSink = null }
+
+  private fun emitProgress(event: Map<String, Any?>) = main.post { progressSink?.success(event) }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    progressChannel.setStreamHandler(null)
     engine?.dispose()
     engine = null
   }
@@ -39,7 +51,7 @@ class PcmAsrPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     try {
       when (call.method) {
         "support" -> engine().support(call.argument<String>("locale") ?: "", reply)
-        "prepare" -> engine().prepare(call.argument<String>("locale") ?: "", reply)
+        "prepare" -> engine().prepare(call.argument<String>("locale") ?: "", reply) { emitProgress(it) }
         "transcribe" -> {
           val id = call.argument<String>("id")
           val locale = call.argument<String>("locale")

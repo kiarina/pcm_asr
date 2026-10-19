@@ -153,7 +153,7 @@ class PcmAsrWeb extends PcmAsrPlatform {
   }
 
   @override
-  Future<void> prepare({required String locale}) async {
+  Future<void> prepare({required String locale, void Function(PrepareProgress progress)? onProgress}) async {
     // No automatic model install: `install()` downloads about 60 MB into
     // the user's browser and prompts. The app decides; cloud works as is.
   }

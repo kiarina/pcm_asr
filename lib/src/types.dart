@@ -107,6 +107,24 @@ class TranscribeResult {
       };
 }
 
+/// Progress of [PcmAsr.prepare]: a model download, its installation, the
+/// engine load, or a warm-up decode. [completed] and [total] are bytes when
+/// the engine reports bytes, otherwise a 0..1 fraction with [total] 1; both
+/// are null when the stage has no measure.
+class PrepareProgress {
+  const PrepareProgress({required this.stage, this.completed, this.total});
+
+  /// `download`, `install`, `load` or `warmup`.
+  final String stage;
+  final double? completed;
+  final double? total;
+
+  double? get fraction => (completed != null && total != null && total! > 0) ? completed! / total! : null;
+
+  @override
+  String toString() => 'PrepareProgress($stage ${fraction == null ? '' : '${(fraction! * 100).toStringAsFixed(0)}%'})';
+}
+
 /// Whether and how the engine's language model is present.
 enum ModelState {
   /// Ready to use without any download.

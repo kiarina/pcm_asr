@@ -77,7 +77,7 @@ actor SpeechAnalyzerEngine {
     return out
   }
 
-  func prepare(locale tag: String) async throws {
+  func prepare(locale tag: String, progress: (@Sendable ([String: Any]) -> Void)? = nil) async throws {
     guard #available(macOS 26.0, iOS 26.0, *) else { throw EngineError.unsupportedPlatform("SpeechAnalyzer needs macOS 26 or iOS 26") }
     let locale = try await resolve(tag)
     let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
@@ -88,7 +88,18 @@ actor SpeechAnalyzerEngine {
       guard let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) else {
         throw EngineError.modelUnavailable("installation request unavailable for \(locale.identifier(.bcp47))")
       }
+      // The request exposes a Foundation Progress; sample it while installing.
+      progress?(["stage": "download", "completed": 0.0, "total": 1.0])
+      let poller = Task {
+        while !Task.isCancelled {
+          try? await Task.sleep(for: .milliseconds(250))
+          if Task.isCancelled { break }
+          progress?(["stage": "download", "completed": request.progress.fractionCompleted, "total": 1.0])
+        }
+      }
+      defer { poller.cancel() }
       try await request.downloadAndInstall()
+      progress?(["stage": "download", "completed": 1.0, "total": 1.0])
     }
   }
 
