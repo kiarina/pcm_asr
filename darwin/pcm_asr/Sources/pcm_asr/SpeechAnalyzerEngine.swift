@@ -69,6 +69,7 @@ actor SpeechAnalyzerEngine {
     let status = await AssetInventory.status(forModules: [transcriber])
     out["model_state"] = Self.modelState(status)
     out["supported"] = status != .unsupported
+    out["needs_network_for_model"] = status != .installed
     if status == .unsupported { out["reason"] = "model_unavailable" }
     let probe = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16000, channels: 1, interleaved: false)
     if let best = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber], considering: probe) {
