@@ -41,6 +41,17 @@ print('${result.id}: ${result.text} (${result.elapsed.inMilliseconds} ms, ${resu
 | iOS 26+ | same (shared `darwin/` source) | yes | needs hardware that reports `SpeechTranscriber.isAvailable`; no Simulator |
 | Android 13+ (API 33) | `android.speech.SpeechRecognizer` fed by a pipe (`EXTRA_AUDIO_SOURCE`) | when the device has an on-device recognizer | verified on a Pixel 6; PCM is written as fast as the pipe accepts (a lab knob restores real-time pace); a 0.6 s silent tail is appended; `stopListening` is never called |
 | Web | `SpeechRecognition.start(MediaStreamTrack)` | no (cloud, unless the user installed Chrome's language pack) | desktop Chrome/Edge 135+ only; audio goes to the browser vendor's servers |
-| Windows 10/11 x64 | whisper.cpp inside the package (`PcmAsrWindows`, dart:ffi, CPU with AVX2) | yes | no OS engine takes external PCM for Japanese, so `prepare()` fetches a pinned ggml model from Hugging Face (`PcmAsrWindows.model`: base, small, large-v3-turbo, large-v3-turbo-q5_0) into the app's support directory; building needs Visual Studio's C++ tools and `tool/fetch_whisper_cpp.ps1` (or `.sh`) once |
+| Windows 10/11 x64 | whisper.cpp inside the package (`PcmAsrWindows`, dart:ffi; Vulkan GPU when the DLL was built with the Vulkan SDK and a device exists, else CPU with AVX2) | yes | no OS engine takes external PCM for Japanese, so `prepare()` fetches a pinned ggml model from Hugging Face into the app's support directory. Default model: large-v3-turbo q5_0 (574 MB) on a Vulkan GPU, small (488 MB) on the CPU; override with `PcmAsrWindows.model`. Building needs Visual Studio's C++ tools and `tool/fetch_whisper_cpp.ps1` (or `.sh`) once; install the Vulkan SDK (`VULKAN_SDK` set) for the GPU backend, and build the app from a short path (the shader generator exceeds MAX_PATH from deep build directories) |
 
-Measured numbers and the evidence are in the lab README one level up.
+Measured on the lab's six-segment Japanese fixture (request → final result, median):
+
+| Platform | Engine | CER | Median |
+| --- | --- | ---: | ---: |
+| macOS 27, M1 Max | SpeechAnalyzer | 0 % | 99 ms |
+| iOS 27, iPad Air 4 | SpeechAnalyzer | 0 % | 117 ms |
+| Android 17, Pixel 6 | on-device SpeechRecognizer | 4.7 % | 458 ms |
+| Web, Chrome 155 (cloud) | SpeechRecognition | 5.8 % | 3.4 s |
+| Windows 11, RTX 3080 Ti (Vulkan) | whisper.cpp large-v3-turbo q5_0 | 0 % | 95 ms |
+| Windows 11, i9-12900K (CPU, 8 threads) | whisper.cpp small | 7.0 % | 1.36 s |
+
+Evidence and the full tables: `labs/2026/10/19/flutter-pcm-asr-plugin`.

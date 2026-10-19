@@ -30,6 +30,10 @@
   `configure` で戻せるようにしておき、他端末で問題が出たら既定を見直す
 - 認証値・録音・会話文・個人環境のパスを公開物に混ぜない。例題の音声は共有素材（`kiarina/test-assets`）だけ
 
+- Windows の build: `src/CMakeLists.txt` が Vulkan SDK（`VULKAN_SDK`）を見つけると `GGML_VULKAN=ON`（DLL は約 47 MB、無いと CPU のみで 1.6 MB）。
+  ggml のシェーダー生成（ExternalProject）は深い build ディレクトリで MSBuild の MAX_PATH を超えて `MSB4184` で落ちるので、
+  短いパス（junction）から build する。CMake のディレクトリ名は `s`・`w` に縮めてある
+
 ## 検証
 
 - `flutter analyze` と `flutter test`（Dart の契約と MethodChannel の写像）
