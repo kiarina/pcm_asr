@@ -16,6 +16,8 @@
 
 - 約束は「確定済みの PCM16 区間を 1 つ渡すと、その要求の最終文字が 1 つ返る」だけ。マイクは開かない。
   区間の切り方・VAD・話者の判定は呼び出し側が持つ。partial は返さない
+- `prepare()` は `onProgress` で download / install / load / warmup を流す（native は EventChannel `pcm_asr/prepare_progress`）。
+  区間の上限は `PcmAsr.maxSegment`（60 秒）で、native を呼ぶ前に Dart で `invalidPcm` にする
 - `support()` は engine・外部 PCM の可否・端末内かどうか・モデルの状態・locale を**別々のフィールド**で返す。
   単一の bool に畳まない。「非対応を返す実装がある」だけの OS を対応済みと表示しない
 - エンジンは OS 標準を優先する。Apple は SpeechAnalyzer（macOS 26 / iOS 26 以上。要求ごとに analyzer を作り
