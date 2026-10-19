@@ -21,6 +21,7 @@ const androidTailMs = String.fromEnvironment('PCM_ASR_ANDROID_TAIL_MS');
 /// Windows lab knobs: whisper model name and thread count.
 const whisperModel = String.fromEnvironment('PCM_ASR_WHISPER_MODEL');
 const whisperThreads = String.fromEnvironment('PCM_ASR_WHISPER_THREADS');
+const whisperGpu = String.fromEnvironment('PCM_ASR_WHISPER_GPU');
 
 /// Also append every line to this file (Windows GUI apps have no stdout).
 const logFile = String.fromEnvironment('PCM_ASR_LOG_FILE');
@@ -68,9 +69,9 @@ class _FixturePageState extends State<FixturePage> {
     String? unsupportedReason;
     try {
       log('platform', {'os': kIsWeb ? 'web' : defaultTargetPlatform.name, 'locale': locale});
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && (whisperModel.isNotEmpty || whisperThreads.isNotEmpty)) {
-        configureWindows(model: whisperModel, threads: int.tryParse(whisperThreads));
-        log('configure', {'whisper_model': whisperModel, 'threads': whisperThreads});
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+        configureWindows(model: whisperModel, threads: int.tryParse(whisperThreads), useGpu: whisperGpu.isEmpty ? null : whisperGpu == '1');
+        log('configure', {'whisper_model': whisperModel, 'threads': whisperThreads, 'gpu': whisperGpu, 'backend': windowsBackend()});
       }
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && (androidPace.isNotEmpty || androidTailMs.isNotEmpty)) {
         await const MethodChannel('pcm_asr').invokeMethod('configure', {

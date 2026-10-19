@@ -51,6 +51,14 @@ class PcmAsrWindows extends PcmAsrPlatform {
   /// whisper.cpp threads; 0 lets whisper.cpp choose (min(4, cores)).
   static int threads = 0;
 
+  /// Use the GPU (Vulkan) when the DLL was built with it and a device exists;
+  /// ggml falls back to the CPU otherwise.
+  static bool useGpu = true;
+
+  /// whisper.cpp version and the backends compiled into the DLL, e.g.
+  /// `whisper.cpp v1.9.5 (Vulkan, CPU)`.
+  static String get backendDescription => WhisperEngine.backend;
+
   /// Segments whose RMS is below this are answered with empty text without
   /// running whisper: on one second of digital silence whisper hallucinated a
   /// sentence ("この動画は…また次回!") even with non-speech suppression on.
@@ -109,7 +117,7 @@ class PcmAsrWindows extends PcmAsrPlatform {
       await _engine!.dispose();
       _engine = null;
     }
-    _engine ??= await WhisperEngine.load(path: file.path);
+    _engine ??= await WhisperEngine.load(path: file.path, useGpu: useGpu);
     _loaded = model;
   }
 

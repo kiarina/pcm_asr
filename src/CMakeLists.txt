@@ -38,9 +38,21 @@ if (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|x64)$")
   set(GGML_FMA  ON CACHE BOOL "" FORCE)
   set(GGML_F16C ON CACHE BOOL "" FORCE)
   set(GGML_BMI2 ON CACHE BOOL "" FORCE)
-  set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
   set(GGML_CUDA   OFF CACHE BOOL "" FORCE)
   set(GGML_BLAS   OFF CACHE BOOL "" FORCE)
+  # GPU through Vulkan when the Vulkan SDK is installed on the build machine
+  # (VULKAN_SDK environment variable, https://vulkan.lunarg.com/). The DLL then
+  # needs only the user's graphics driver (vulkan-1.dll); without a usable
+  # device ggml falls back to the CPU. PAW_VULKAN=OFF forces a CPU-only build.
+  option(PAW_VULKAN "Build the ggml Vulkan backend when the Vulkan SDK is found" ON)
+  find_package(Vulkan QUIET)
+  if (PAW_VULKAN AND Vulkan_FOUND)
+    message(STATUS "pcm_asr: Vulkan SDK found at ${Vulkan_INCLUDE_DIR}, building the Vulkan backend")
+    set(GGML_VULKAN ON CACHE BOOL "" FORCE)
+  else()
+    message(STATUS "pcm_asr: Vulkan SDK not found, CPU-only whisper.cpp")
+    set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
+  endif()
 endif()
 
 add_subdirectory("${PAW_WHISPER_DIR}" whisper.cpp EXCLUDE_FROM_ALL)
