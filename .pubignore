@@ -1,3 +1,19 @@
+# .pubignore replaces .gitignore for the archive, so the build outputs must be listed here too.
+build/
+.dart_tool/
+.idea/
+*.iml
+pubspec.lock
+example/build/
+example/.dart_tool/
+example/pubspec.lock
+example/.flutter-plugins-dependencies
+example/ios/Flutter/ephemeral/
+example/macos/Flutter/ephemeral/
+example/ios/.symlinks/
+example/android/.gradle/
+example/windows/flutter/ephemeral/
+third_party/
 # Not part of the published package
 AGENTS.md
 tasks/

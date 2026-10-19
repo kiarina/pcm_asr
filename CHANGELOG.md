@@ -1,3 +1,7 @@
+## 0.1.1
+
+- Same sources as 0.1.0; the 0.1.0 archive accidentally contained local build outputs (28 MB). Use 0.1.1.
+
 ## 0.1.0
 
 First release.
