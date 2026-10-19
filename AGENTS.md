@@ -19,8 +19,8 @@
 - `support()` は engine・外部 PCM の可否・端末内かどうか・モデルの状態・locale を**別々のフィールド**で返す。
   単一の bool に畳まない。「非対応を返す実装がある」だけの OS を対応済みと表示しない
 - エンジンは OS 標準を優先する。Apple は SpeechAnalyzer（macOS 26 / iOS 26 以上。要求ごとに analyzer を作り
-  `finalizeAndFinish` を待つ）、Android は `SpeechRecognizer` に pipe で PCM を渡す（API 33 以上。`stopListening` は呼ばない、
-  pipe を閉じる前に無音を書く、service が開くのを待つ、要求ごとに writer の thread）、Web は `SpeechRecognition.start(track)`
+  `finalizeAndFinish` を待つ。**1 件ずつ直列**: iOS は 3 件同時で "Maximum number of recognizers reached"）、Android は `SpeechRecognizer` に pipe で PCM を渡す（API 33 以上。`stopListening` は呼ばない、
+  pipe を閉じる前に無音を書く、service が開くのを待つ、要求ごとに writer の thread、`ERROR_CLIENT`／`SERVER_DISCONNECTED`／`BUSY` は作り直して再試行）、Web は `SpeechRecognition.start(track)`
   （desktop の Chrome / Edge 135 以上、cloud。track が終わっても確定しないので `stop()` を呼ぶ）
 - **Windows だけはパッケージの内部で whisper.cpp を動かす**（オーナー、2026-10-19）。OS の認識器では日本語の外部 PCM が成立しないため。
   契約は同じで `engine: whisper.cpp`・`on_device: true` を返し、重みは `prepare()` で Hugging Face の `ggerganov/whisper.cpp` から

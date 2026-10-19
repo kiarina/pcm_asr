@@ -17,10 +17,10 @@ base・small・large-v3-turbo の 3 つの速さと誤り率を並べて既定�
 
 残り:
 
-- [ ] GPU の無い PC での CPU の fallback（`gpuAvailable == false` → small）を実機で確かめる。G-GEAR には GPU があり未確認
+- [x] CPU の fallback: `PCM_ASR_VULKAN=0` で CPU のみの DLL を build し、`gpuAvailable` が偽で small が選ばれ CER 7.0 %・1.42 秒（2026-10-20）。GPU の無い実機ではまだ
 - [ ] 暖機の効果を cold（ドライバーのシェーダーキャッシュが空）で確かめる。計測は warm の後だった
 - [ ] `prepare()` の取得の進捗を出す口（1.6 GB の f16 は 47 秒かかった）。契約に progress が無い
-- [ ] Vulkan の無い build（CPU のみ）でも `paw_gpu_available` が 0 を返すことの確認（ggml-backend.h の include は両方で通った）
+- [x] Vulkan の無い build（CPU のみ）でも `paw_gpu_available` が 0 を返す（同上）
 - [ ] 公開物の案内: Vulkan SDK・短いパス・VC++ ツールの要件を README に書いた。pub.dev の点数（`flutter pub publish --dry-run`）は未確認
 
 ## やること（当初の計画）
