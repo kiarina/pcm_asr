@@ -24,12 +24,14 @@
   （desktop の Chrome / Edge 135 以上、cloud。track が終わっても確定しないので `stop()` を呼ぶ）
 - **Windows だけはパッケージの内部で whisper.cpp を動かす**（オーナー、2026-10-19）。OS の認識器では日本語の外部 PCM が成立しないため。
   契約は同じで `engine: whisper.cpp`・`on_device: true` を返し、重みは `prepare()` で Hugging Face の `ggerganov/whisper.cpp` から
-  hash を固定して取る。候補は base・small・large-v3-turbo で、実測して既定を決める。whisper は当面 Windows 限定
+  hash を固定して取る。実測（2026-10-19、G-GEAR）の結果、**Vulkan の GPU があれば large-v3-turbo q5_0（CER 0 %、約 100 ms）、
+  無ければ small（CER 7 %、8 スレッドで 1.4 秒）** を既定にし、`PcmAsrWindows.model` で上書きできる。threads の既定は min(8, 論理コア)。
+  ロード後に 0.5 秒の雑音で暖機する（Vulkan のパイプラインのコンパイルが最初の要求に 3〜8 秒乗る）。RMS 0.001 未満の区間は whisper に
+  渡さず空文字にする（無音で幻覚する）。whisper は当面 Windows 限定
 - Web は cloud（音声をブラウザーのサービスへ送る）で対応に数える。`on_device: false` をそのまま返し、利用者への説明はアプリの責任（オーナー、2026-10-19）
 - Android の PCM は待たずに書く（Pixel 6 で文字が同じまま 7 倍速かった）。field report は実時間を求めているので、
   `configure` で戻せるようにしておき、他端末で問題が出たら既定を見直す
 - 認証値・録音・会話文・個人環境のパスを公開物に混ぜない。例題の音声は共有素材（`kiarina/test-assets`）だけ
-
 - Windows の build: `src/CMakeLists.txt` が Vulkan SDK（`VULKAN_SDK`）を見つけると `GGML_VULKAN=ON`（DLL は約 47 MB、無いと CPU のみで 1.6 MB）。
   ggml のシェーダー生成（ExternalProject）は深い build ディレクトリで MSBuild の MAX_PATH を超えて `MSB4184` で落ちるので、
   短いパス（junction）から build する。CMake のディレクトリ名は `s`・`w` に縮めてある
