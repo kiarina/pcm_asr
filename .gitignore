@@ -33,3 +33,5 @@ migrate_working_dir/
 /coverage/
 third_party/
 example/assets/segments/
+pubspec.lock
+example/pubspec.lock
