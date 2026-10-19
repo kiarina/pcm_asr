@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "whisper.h"
+#include "ggml-backend.h"
 
 static int g_log_enabled = -1;
 
@@ -85,6 +86,11 @@ PAW_API const char* paw_result_language(void* ctx) {
   int id = whisper_full_lang_id((struct whisper_context*)ctx);
   const char* s = id >= 0 ? whisper_lang_str(id) : NULL;
   return s ? s : "";
+}
+
+PAW_API int paw_gpu_available(void) {
+  whisper_log_set(paw_log_cb, NULL);
+  return ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_GPU) != NULL ? 1 : 0;
 }
 
 static char g_backend[256];

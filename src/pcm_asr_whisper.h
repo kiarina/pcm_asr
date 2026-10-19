@@ -32,6 +32,8 @@ PAW_API const char* paw_segment_text(void* ctx, int i);
 PAW_API int64_t paw_segment_t0(void* ctx, int i);
 PAW_API int64_t paw_segment_t1(void* ctx, int i);
 PAW_API const char* paw_result_language(void* ctx);
+// 1 when ggml has a GPU device (Vulkan) compiled in and present, else 0.
+PAW_API int paw_gpu_available(void);
 PAW_API const char* paw_backend(void);
 PAW_API const char* paw_system_info(void);
 

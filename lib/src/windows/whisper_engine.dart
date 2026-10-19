@@ -113,6 +113,10 @@ class WhisperEngine {
 
   static String get backend => _utf8(_Lib.instance.backend());
 
+  /// True when the DLL has a GPU backend and a device is present. Initializes
+  /// the ggml backend registry; call it off the UI isolate when it matters.
+  static bool get gpuAvailable => _Lib.instance.gpuAvailable() != 0;
+
   Future<Object?> _call(List<Object?> request) {
     if (_disposed) return Future.error(const WhisperException('engine disposed'));
     final c = Completer<Object?>();
@@ -157,6 +161,8 @@ typedef _CtxIdxI64 = int Function(Pointer<Void>, int);
 typedef _CtxStrC = Pointer<Char> Function(Pointer<Void>);
 typedef _CtxStr = Pointer<Char> Function(Pointer<Void>);
 typedef _StrC = Pointer<Char> Function();
+typedef _IntRetC = Int32 Function();
+typedef _IntRet = int Function();
 typedef _IntArgC = Void Function(Int32);
 typedef _IntArg = void Function(int);
 
@@ -171,6 +177,7 @@ class _Lib {
         segmentT0 = l.lookupFunction<_CtxIdxI64C, _CtxIdxI64>('paw_segment_t0'),
         segmentT1 = l.lookupFunction<_CtxIdxI64C, _CtxIdxI64>('paw_segment_t1'),
         resultLanguage = l.lookupFunction<_CtxStrC, _CtxStr>('paw_result_language'),
+        gpuAvailable = l.lookupFunction<_IntRetC, _IntRet>('paw_gpu_available'),
         backend = l.lookupFunction<_StrC, _StrC>('paw_backend'),
         systemInfo = l.lookupFunction<_StrC, _StrC>('paw_system_info');
 
@@ -185,6 +192,7 @@ class _Lib {
   final _CtxIdxI64 segmentT0;
   final _CtxIdxI64 segmentT1;
   final _CtxStr resultLanguage;
+  final _IntRet gpuAvailable;
   final Pointer<Char> Function() backend;
   final Pointer<Char> Function() systemInfo;
 }

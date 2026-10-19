@@ -44,12 +44,21 @@ class PcmAsrWindows extends PcmAsrPlatform {
     PcmAsrPlatform.instance = PcmAsrWindows();
   }
 
-  /// The model `prepare()` fetches and `transcribe()` uses. Change it before
-  /// `prepare()`; a running engine for another model is released first.
-  static WhisperModel model = WhisperModel.small;
+  /// The model `prepare()` fetches and `transcribe()` uses. Null picks
+  /// automatically: large-v3-turbo q5_0 when a Vulkan GPU is present (every
+  /// character of the lab's Japanese fixture right, ~100 ms per request on an
+  /// RTX 3080 Ti), otherwise small (7 % CER, ~1.4 s on 8 CPU threads of an
+  /// i9-12900K). Change it before `prepare()`; a running engine for another
+  /// model is released first.
+  static WhisperModel? model;
 
-  /// whisper.cpp threads; 0 lets whisper.cpp choose (min(4, cores)).
+  /// whisper.cpp threads; 0 picks min(8, logical processors). whisper.cpp's
+  /// own default (min(4, cores)) was 1.7 times slower on an 8-P-core CPU.
   static int threads = 0;
+
+  /// One short decode after loading so the first real request does not pay
+  /// for the Vulkan pipeline compilation (3 to 8 s cold in the lab).
+  static bool warmUp = true;
 
   /// Use the GPU (Vulkan) when the DLL was built with it and a device exists;
   /// ggml falls back to the CPU otherwise.
@@ -76,7 +85,11 @@ class PcmAsrWindows extends PcmAsrPlatform {
   WhisperModel? _loaded;
   final _running = <String, WhisperAbortFlag>{};
 
-  String _engineId() => '$engineIdPrefix/${model.name}';
+  static WhisperModel get effectiveModel => model ?? (WhisperEngine.gpuAvailable ? WhisperModel.largeV3TurboQ5 : WhisperModel.small);
+
+  static int get effectiveThreads => threads > 0 ? threads : math.min(8, Platform.numberOfProcessors);
+
+  String _engineId() => '$engineIdPrefix/${effectiveModel.name}';
 
   static String? languageOf(String locale) {
     final tag = locale.replaceAll('_', '-').toLowerCase();
@@ -84,13 +97,13 @@ class PcmAsrWindows extends PcmAsrPlatform {
     return _whisperLanguages.contains(lang) ? lang : null;
   }
 
-  Future<File> _modelFile() async => File('${(await modelDirectory()).path}${Platform.pathSeparator}${model.file}');
+  Future<File> _modelFile() async => File('${(await modelDirectory()).path}${Platform.pathSeparator}${effectiveModel.file}');
 
   @override
   Future<RecognitionSupport> support({required String locale}) async {
     final lang = languageOf(locale);
     final file = await _modelFile();
-    final installed = await file.exists() && await file.length() == model.bytes;
+    final installed = await file.exists() && await file.length() == effectiveModel.bytes;
     return RecognitionSupport(
       engine: _engineId(),
       supported: lang != null,
@@ -110,18 +123,33 @@ class PcmAsrWindows extends PcmAsrPlatform {
       throw PcmAsrException(PcmAsrErrorCode.unsupportedLocale, 'whisper has no language for $locale');
     }
     final file = await _modelFile();
-    if (!(await file.exists() && await file.length() == model.bytes)) {
-      await _download(file);
+    final wanted = effectiveModel;
+    if (!(await file.exists() && await file.length() == wanted.bytes)) {
+      await _download(file, wanted);
     }
-    if (_engine != null && _loaded != model) {
+    if (_engine != null && _loaded != wanted) {
       await _engine!.dispose();
       _engine = null;
     }
-    _engine ??= await WhisperEngine.load(path: file.path, useGpu: useGpu);
-    _loaded = model;
+    if (_engine == null) {
+      _engine = await WhisperEngine.load(path: file.path, useGpu: useGpu);
+      _loaded = wanted;
+      if (warmUp) {
+        // 0.5 s of faint noise: enough to build the pipelines, discarded.
+        final noise = Float32List(8000);
+        var seed = 12345;
+        for (var i = 0; i < noise.length; i++) {
+          seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+          noise[i] = (seed / 0x7fffffff - 0.5) * 0.02;
+        }
+        try {
+          await _engine!.transcribe(noise, language: languageOf(locale)!, threads: effectiveThreads);
+        } catch (_) {}
+      }
+    }
   }
 
-  Future<void> _download(File file) async {
+  Future<void> _download(File file, WhisperModel model) async {
     await file.parent.create(recursive: true);
     final part = File('${file.path}.part');
     final client = HttpClient();
@@ -164,7 +192,7 @@ class PcmAsrWindows extends PcmAsrPlatform {
       if (rms(pcm) < silenceRms) {
         return TranscribeResult(id: request.id, text: '', engine: _engineId(), locale: request.locale, elapsed: DateTime.now().difference(started));
       }
-      final work = engine.transcribe(pcm, language: lang, threads: threads, abort: flag);
+      final work = engine.transcribe(pcm, language: lang, threads: effectiveThreads, abort: flag);
       WhisperResult result;
       try {
         result = await work.timeout(request.timeout);
