@@ -7,6 +7,7 @@
 // runs whisper.cpp with a ggml model fetched by `prepare()`.
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -49,6 +50,11 @@ class PcmAsrWindows extends PcmAsrPlatform {
 
   /// whisper.cpp threads; 0 lets whisper.cpp choose (min(4, cores)).
   static int threads = 0;
+
+  /// Segments whose RMS is below this are answered with empty text without
+  /// running whisper: on one second of digital silence whisper hallucinated a
+  /// sentence ("この動画は…また次回!") even with non-speech suppression on.
+  static double silenceRms = 0.001;
 
   /// Where models are stored; defaults to the app's support directory.
   static Future<Directory> Function() modelDirectory = () async {
@@ -147,6 +153,9 @@ class PcmAsrWindows extends PcmAsrPlatform {
     final started = DateTime.now();
     try {
       final pcm = toMono16k(request.audio);
+      if (rms(pcm) < silenceRms) {
+        return TranscribeResult(id: request.id, text: '', engine: _engineId(), locale: request.locale, elapsed: DateTime.now().difference(started));
+      }
       final work = engine.transcribe(pcm, language: lang, threads: threads, abort: flag);
       WhisperResult result;
       try {
@@ -189,6 +198,15 @@ class PcmAsrWindows extends PcmAsrPlatform {
     _engine = null;
     _loaded = null;
     await engine?.dispose();
+  }
+
+  static double rms(Float32List pcm) {
+    if (pcm.isEmpty) return 0;
+    var sum = 0.0;
+    for (final v in pcm) {
+      sum += v * v;
+    }
+    return math.sqrt(sum / pcm.length);
   }
 
   /// PCM16LE interleaved → mono float32 at 16 kHz (linear resampling when the
