@@ -20,8 +20,8 @@ print('${result.id}: ${result.text} (${result.elapsed.inMilliseconds} ms, ${resu
 ## Contract
 
 - Input: interleaved signed 16-bit little-endian PCM, any sample rate the
-  engine accepts (16 kHz mono is the reference input; Apple converts other
-  rates, Android and Web require 16 kHz mono).
+  engine accepts (16 kHz mono is the reference input; Apple and the Windows
+  whisper backend convert other rates, Android and Web require 16 kHz mono).
 - One request, one final result. No partial results, no microphone.
 - `RecognitionSupport` reports separately whether the engine exists, takes
   external PCM, runs on the device, and whether its model is installed,
@@ -41,6 +41,6 @@ print('${result.id}: ${result.text} (${result.elapsed.inMilliseconds} ms, ${resu
 | iOS 26+ | same (shared `darwin/` source) | yes | needs hardware that reports `SpeechTranscriber.isAvailable`; no Simulator |
 | Android 13+ (API 33) | `android.speech.SpeechRecognizer` fed by a pipe (`EXTRA_AUDIO_SOURCE`) | when the device has an on-device recognizer | verified on a Pixel 6; PCM is written as fast as the pipe accepts (a lab knob restores real-time pace); a 0.6 s silent tail is appended; `stopListening` is never called |
 | Web | `SpeechRecognition.start(MediaStreamTrack)` | no (cloud, unless the user installed Chrome's language pack) | desktop Chrome/Edge 135+ only; audio goes to the browser vendor's servers |
-| Windows | none | – | no OS engine takes external PCM for Japanese; `support()` reports `unsupportedPlatform` |
+| Windows 10/11 x64 | whisper.cpp inside the package (`PcmAsrWindows`, dart:ffi, CPU with AVX2) | yes | no OS engine takes external PCM for Japanese, so `prepare()` fetches a pinned ggml model from Hugging Face (`PcmAsrWindows.model`: base, small, large-v3-turbo, large-v3-turbo-q5_0) into the app's support directory; building needs Visual Studio's C++ tools and `tool/fetch_whisper_cpp.ps1` (or `.sh`) once |
 
 Measured numbers and the evidence are in the lab README one level up.
