@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, FileMode, exit, stdout;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -157,6 +158,7 @@ class _FixturePageState extends State<FixturePage> {
       } on PcmAsrException catch (e) {
         log('error_check', {'case': 'silence', 'ok': false, 'code': e.code.name, 'message': e.message});
       }
+      await robustness(segments);
       await asr.dispose();
       ok = true;
     } catch (e, st) {
@@ -169,6 +171,103 @@ class _FixturePageState extends State<FixturePage> {
         exit(ok ? 0 : 1);
       }
     }
+  }
+
+  /// Edge cases the contract promises: very short and long input, concurrent
+  /// and duplicate requests, a timeout, invalid PCM, use after dispose.
+  Future<void> robustness(List<(Map<String, Object?>, Uint8List)> segments) async {
+    final first = segments.first.$2;
+    Future<void> check(String name, Future<Map<String, Object?>> Function() body) async {
+      try {
+        log('error_check', {'case': name, 'ok': true, ...await body()});
+      } on PcmAsrException catch (e) {
+        log('error_check', {'case': name, 'ok': false, 'code': e.code.name, 'message': e.message});
+      } catch (e) {
+        log('error_check', {'case': name, 'ok': false, 'error': e.toString()});
+      }
+    }
+
+    // 100 ms: must come back (text may be empty), not fail.
+    await check('short', () async {
+      final r = await asr.transcribe(TranscribeRequest(id: 'short', locale: locale, audio: PcmSegment(pcm16le: Uint8List.sublistView(first, 0, 3200), sampleRate: 16000)));
+      return {'text': r.text, 'elapsed_ms': r.elapsed.inMilliseconds};
+    });
+    // ~28 s: all six segments twice.
+    await check('long', () async {
+      final all = BytesBuilder(copy: false);
+      for (var i = 0; i < 2; i++) {
+        for (final (_, pcm) in segments) {
+          all.add(pcm);
+        }
+      }
+      final pcm = all.takeBytes();
+      final r = await asr.transcribe(TranscribeRequest(id: 'long', locale: locale, audio: PcmSegment(pcm16le: pcm, sampleRate: 16000), timeout: const Duration(seconds: 90)));
+      if (r.text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'empty text for 28 s of speech');
+      return {'seconds': pcm.length / 32000, 'characters': r.text.length, 'elapsed_ms': r.elapsed.inMilliseconds};
+    });
+    // Three at once: every reply must carry its own id.
+    await check('concurrent', () async {
+      final futures = [
+        for (var i = 0; i < 3; i++)
+          asr.transcribe(TranscribeRequest(id: 'concurrent-$i', locale: locale, audio: PcmSegment(pcm16le: segments[i].$2, sampleRate: 16000), timeout: const Duration(seconds: 60))),
+      ];
+      final results = await Future.wait(futures);
+      for (var i = 0; i < 3; i++) {
+        if (results[i].id != 'concurrent-$i') throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'id mismatch');
+        if (results[i].text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'empty text in concurrent request');
+      }
+      return {'elapsed_ms': [for (final r in results) r.elapsed.inMilliseconds]};
+    });
+    // Same id twice: the second must be refused, the first must finish.
+    await check('duplicate_id', () async {
+      final a = asr.transcribe(TranscribeRequest(id: 'dup', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+      String second;
+      try {
+        await asr.transcribe(TranscribeRequest(id: 'dup', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+        second = 'accepted';
+      } on PcmAsrException catch (e) {
+        second = e.code.name;
+      }
+      final r = await a;
+      if (r.text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'first request lost its text');
+      return {'second': second};
+    });
+    // 1 ms timeout: must be reported as timeout and leave the engine usable.
+    await check('timeout', () async {
+      try {
+        await asr.transcribe(TranscribeRequest(id: 'timeout', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000), timeout: const Duration(milliseconds: 1)));
+        return {'note': 'finished within 1 ms'};
+      } on PcmAsrException catch (e) {
+        if (e.code != PcmAsrErrorCode.timeout) rethrow;
+      }
+      final r = await asr.transcribe(TranscribeRequest(id: 'after-timeout', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+      return {'after_timeout_text': r.text};
+    });
+    // Odd byte count: rejected before any native call.
+    await check('invalid_pcm', () async {
+      try {
+        PcmSegment(pcm16le: Uint8List(3), sampleRate: 16000);
+        throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'accepted an odd byte count');
+      } on ArgumentError {
+        return {};
+      }
+    });
+    // Dispose twice, then use again (prepare + transcribe).
+    await check('dispose_resume', () async {
+      await asr.dispose();
+      await asr.dispose();
+      String afterDispose;
+      try {
+        final r = await asr.transcribe(TranscribeRequest(id: 'after-dispose', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+        afterDispose = r.text.isEmpty ? 'empty' : 'text';
+      } on PcmAsrException catch (e) {
+        afterDispose = e.code.name;
+      }
+      await asr.prepare(locale: locale);
+      final r = await asr.transcribe(TranscribeRequest(id: 'resumed', locale: locale, audio: PcmSegment(pcm16le: first, sampleRate: 16000)));
+      if (r.text.isEmpty) throw const PcmAsrException(PcmAsrErrorCode.engineFailure, 'no text after resume');
+      return {'after_dispose': afterDispose};
+    });
   }
 
   @override

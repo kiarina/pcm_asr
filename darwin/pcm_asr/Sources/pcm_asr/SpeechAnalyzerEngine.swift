@@ -83,14 +83,16 @@ actor SpeechAnalyzerEngine {
   func transcribe(id: String, locale tag: String, pcm: Data, sampleRate: Double, channels: Int) async throws -> [String: Any] {
     guard #available(macOS 26.0, iOS 26.0, *) else { throw EngineError.unsupportedPlatform("SpeechAnalyzer needs macOS 26 or iOS 26") }
     guard running[id] == nil else { throw EngineError.engineFailure("request id already running: \(id)") }
-    let locale = try await resolve(tag)
-    let buffer = try Self.makeBuffer(pcm: pcm, sampleRate: sampleRate, channels: channels)
-
-    let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
-    let analyzer = SpeechAnalyzer(modules: [transcriber], options: .init(priority: .userInitiated, modelRetention: .processLifetime))
-    let cancelHandler: @Sendable () async -> Void = { await analyzer.cancelAndFinishNow() }
+    // Registered before the first await so a second request with the same id is refused.
+    let analyzerBox = AnalyzerBox()
+    let cancelHandler: @Sendable () async -> Void = { await analyzerBox.cancel() }
     let task = Task<[String: Any], Error> {
       let origin = ContinuousClock.now
+      let locale = try await self.resolve(tag)
+      let buffer = try Self.makeBuffer(pcm: pcm, sampleRate: sampleRate, channels: channels)
+      let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
+      let analyzer = SpeechAnalyzer(modules: [transcriber], options: .init(priority: .userInitiated, modelRetention: .processLifetime))
+      await analyzerBox.set(analyzer)
       let input = try await Self.inputBuffer(for: buffer, transcriber: transcriber)
       try await analyzer.prepareToAnalyze(in: input.format)
       let collector = Collector()
@@ -215,6 +217,21 @@ actor SpeechAnalyzerEngine {
     if let conversionError { throw EngineError.engineFailure("conversion failed: \(conversionError)") }
     if status == .error { throw EngineError.engineFailure("conversion failed") }
     return out
+  }
+
+  /// Holds the analyzer of one request so cancel() can reach it once it exists.
+  private actor AnalyzerBox {
+    private var analyzer: Any?
+    private var cancelled = false
+    @available(macOS 26.0, iOS 26.0, *)
+    func set(_ a: SpeechAnalyzer) async {
+      analyzer = a
+      if cancelled { await a.cancelAndFinishNow() }
+    }
+    func cancel() async {
+      cancelled = true
+      if #available(macOS 26.0, iOS 26.0, *), let a = analyzer as? SpeechAnalyzer { await a.cancelAndFinishNow() }
+    }
   }
 
   @available(macOS 26.0, iOS 26.0, *)

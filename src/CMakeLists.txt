@@ -45,6 +45,11 @@ if (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|x64)$")
   # needs only the user's graphics driver (vulkan-1.dll); without a usable
   # device ggml falls back to the CPU. PAW_VULKAN=OFF forces a CPU-only build.
   option(PAW_VULKAN "Build the ggml Vulkan backend when the Vulkan SDK is found" ON)
+  # Flutter passes no CMake options through; PCM_ASR_VULKAN=0 in the build
+  # environment forces the CPU-only DLL (used to test the CPU fallback).
+  if (DEFINED ENV{PCM_ASR_VULKAN} AND "$ENV{PCM_ASR_VULKAN}" STREQUAL "0")
+    set(PAW_VULKAN OFF)
+  endif()
   find_package(Vulkan QUIET)
   if (PAW_VULKAN AND Vulkan_FOUND)
     message(STATUS "pcm_asr: Vulkan SDK found at ${Vulkan_INCLUDE_DIR}, building the Vulkan backend")
