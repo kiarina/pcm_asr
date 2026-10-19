@@ -8,14 +8,36 @@ caller's request ID back with it. It never records.
 ```dart
 final asr = const PcmAsr();
 final support = await asr.support(locale: 'ja-JP');   // read every field, not just `supported`
-await asr.prepare(locale: 'ja-JP');                   // may download the OS model
+if (!support.supported) return;                       // e.g. Web outside desktop Chrome/Edge
+await asr.prepare(                                    // may download a model (OS asset, Android pack, whisper weights)
+  locale: 'ja-JP',
+  onProgress: (p) => print(p),                        // download / install / load / warmup
+);
 final result = await asr.transcribe(TranscribeRequest(
-  id: 'segment-12',
+  id: 'segment-12',                                   // comes back unchanged: bind it to your own segment / speaker
   locale: 'ja-JP',
   audio: PcmSegment(pcm16le: bytes, sampleRate: 16000, channels: 1),
+  timeout: const Duration(seconds: 20),
 ));
 print('${result.id}: ${result.text} (${result.elapsed.inMilliseconds} ms, ${result.engine})');
+await asr.dispose();
 ```
+
+Where the audio goes: Apple, Android (on-device recognizer) and Windows keep it on
+the device; the Web sends it to the browser vendor's speech service (`support.onDevice`
+says which). No platform needs the microphone permission for this package; the
+caller records.
+
+Platform setup:
+
+- **macOS / iOS**: nothing beyond macOS 26 / iOS 26. No `NSSpeechRecognitionUsageDescription`
+  is needed for SpeechAnalyzer (it never sends audio to Apple). Not available in the iOS Simulator.
+- **Android**: API 33+. No `RECORD_AUDIO`. The on-device recognizer must have the language installed;
+  `prepare()` triggers the download and reports progress.
+- **Web**: desktop Chrome/Edge 135+. Nothing to configure; cloud recognition.
+- **Windows**: Visual Studio C++ tools; run `tool/fetch_whisper_cpp.ps1` once; install the Vulkan SDK
+  for the GPU backend and build the app from a short path. The first `prepare()` downloads the model
+  (574 MB for large-v3-turbo q5_0, 488 MB for small).
 
 ## Contract
 

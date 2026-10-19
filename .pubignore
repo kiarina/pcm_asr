@@ -1,0 +1,6 @@
+# Not part of the published package
+AGENTS.md
+tasks/
+example/fixtures/
+example/assets/
+.github/
