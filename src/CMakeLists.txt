@@ -69,3 +69,8 @@ add_library(pcm_asr_whisper SHARED "pcm_asr_whisper.c")
 target_link_libraries(pcm_asr_whisper PRIVATE whisper)
 set_target_properties(pcm_asr_whisper PROPERTIES OUTPUT_NAME "pcm_asr_whisper")
 target_compile_definitions(pcm_asr_whisper PUBLIC DART_SHARED_LIB)
+
+if (ANDROID)
+  # Support Android 15 16k page size.
+  target_link_options(pcm_asr_whisper PRIVATE "-Wl,-z,max-page-size=16384")
+endif()
