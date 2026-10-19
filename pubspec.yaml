@@ -3,7 +3,6 @@ description: >-
   Final transcription of finalized PCM segments with the OS speech engine
   (SpeechAnalyzer, Android SpeechRecognizer, Web Speech) or whisper.cpp on Windows.
 version: 0.1.0
-publish_to: none
 repository: https://github.com/kiarina/pcm_asr
 issue_tracker: https://github.com/kiarina/pcm_asr/issues
 topics:
