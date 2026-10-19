@@ -55,7 +55,10 @@ if (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|x64)$")
   endif()
 endif()
 
-add_subdirectory("${PAW_WHISPER_DIR}" whisper.cpp EXCLUDE_FROM_ALL)
+# Short binary-directory names: the Vulkan shader generator nests an
+# ExternalProject whose MSBuild probe files exceed MAX_PATH from a deep
+# Flutter build directory. Build the app from a short path if it still fails.
+add_subdirectory("${PAW_WHISPER_DIR}" w EXCLUDE_FROM_ALL)
 
 add_library(pcm_asr_whisper SHARED "pcm_asr_whisper.c")
 target_link_libraries(pcm_asr_whisper PRIVATE whisper)

@@ -8,7 +8,7 @@ project(${PROJECT_NAME} LANGUAGES C CXX)
 # whisper.cpp + ggml (static, x64 AVX2, CPU only) and the C shim, built into
 # pcm_asr_whisper.dll by ../src/CMakeLists.txt. Run ../tool/fetch_whisper_cpp.sh
 # (Git Bash) before the first build.
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DIR}/shared")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DIR}/s")
 
 # Note: `flutter run` (Debug) builds this unoptimized (/Od /RTC1) and whisper
 # is then far too slow; measure with --profile or --release.
