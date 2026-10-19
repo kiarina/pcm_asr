@@ -18,8 +18,8 @@ base・small・large-v3-turbo の 3 つの速さと誤り率を並べて既定�
 残り:
 
 - [x] CPU の fallback: `PCM_ASR_VULKAN=0` で CPU のみの DLL を build し、`gpuAvailable` が偽で small が選ばれ CER 7.0 %・1.42 秒（2026-10-20）。GPU の無い実機ではまだ
-- [ ] 暖機の効果を cold（ドライバーのシェーダーキャッシュが空）で確かめる。計測は warm の後だった
-- [ ] `prepare()` の取得の進捗を出す口（1.6 GB の f16 は 47 秒かかった）。契約に progress が無い
+- [x] 暖機を cold で確認: NVIDIA のキャッシュを消すと `prepare()` 7.4 秒、最初の実要求 104 ms（2026-10-20）
+- [x] `prepare()` の `onProgress`（download のバイト数・load・warmup）と `support().modelBytes`（取得前の大きさ）
 - [x] Vulkan の無い build（CPU のみ）でも `paw_gpu_available` が 0 を返す（同上）
 - [ ] 公開物の案内: Vulkan SDK・短いパス・VC++ ツールの要件を README に書いた。pub.dev の点数（`flutter pub publish --dry-run`）は未確認
 
