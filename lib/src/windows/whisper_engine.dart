@@ -144,8 +144,9 @@ class WhisperEngine {
   static bool get gpuAvailable => _Lib.instance.gpuAvailable() != 0;
 
   Future<Object?> _call(List<Object?> request) {
-    if (_disposed)
+    if (_disposed) {
       return Future.error(const WhisperException('engine disposed'));
+    }
     final c = Completer<Object?>();
     _queue = _queue.then((_) async {
       _sendPort.send(request);

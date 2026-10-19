@@ -60,12 +60,13 @@ class _FixturePageState extends State<FixturePage> {
       print('PCM_ASR $line');
     } else {
       stdout.writeln('PCM_ASR $line');
-      if (logFile.isNotEmpty)
+      if (logFile.isNotEmpty) {
         File(logFile).writeAsStringSync(
           'PCM_ASR $line\n',
           mode: FileMode.append,
           flush: true,
         );
+      }
     }
     setState(() => lines.add(line));
   }
@@ -116,8 +117,9 @@ class _FixturePageState extends State<FixturePage> {
       await asr.prepare(
         locale: locale,
         onProgress: (p) {
-          if (progress.isEmpty || !progress.last.startsWith(p.stage))
+          if (progress.isEmpty || !progress.last.startsWith(p.stage)) {
             progress.add(p.toString());
+          }
           if (p.fraction == 1) progress.add(p.toString());
         },
       );
@@ -354,11 +356,12 @@ class _FixturePageState extends State<FixturePage> {
           timeout: const Duration(seconds: 90),
         ),
       );
-      if (r.text.isEmpty)
+      if (r.text.isEmpty) {
         throw const PcmAsrException(
           PcmAsrErrorCode.engineFailure,
           'empty text for 28 s of speech',
         );
+      }
       return {
         'seconds': pcm.length / 32000,
         'characters': r.text.length,
@@ -380,16 +383,18 @@ class _FixturePageState extends State<FixturePage> {
       ];
       final results = await Future.wait(futures);
       for (var i = 0; i < 3; i++) {
-        if (results[i].id != 'concurrent-$i')
+        if (results[i].id != 'concurrent-$i') {
           throw const PcmAsrException(
             PcmAsrErrorCode.engineFailure,
             'id mismatch',
           );
-        if (results[i].text.isEmpty)
+        }
+        if (results[i].text.isEmpty) {
           throw const PcmAsrException(
             PcmAsrErrorCode.engineFailure,
             'empty text in concurrent request',
           );
+        }
       }
       return {
         'elapsed_ms': [for (final r in results) r.elapsed.inMilliseconds],
@@ -418,11 +423,12 @@ class _FixturePageState extends State<FixturePage> {
         second = e.code.name;
       }
       final r = await a;
-      if (r.text.isEmpty)
+      if (r.text.isEmpty) {
         throw const PcmAsrException(
           PcmAsrErrorCode.engineFailure,
           'first request lost its text',
         );
+      }
       return {'second': second};
     });
     // 1 ms timeout: must be reported as timeout and leave the engine usable.
@@ -486,11 +492,12 @@ class _FixturePageState extends State<FixturePage> {
           audio: PcmSegment(pcm16le: first, sampleRate: 16000),
         ),
       );
-      if (r.text.isEmpty)
+      if (r.text.isEmpty) {
         throw const PcmAsrException(
           PcmAsrErrorCode.engineFailure,
           'no text after resume',
         );
+      }
       return {'after_dispose': afterDispose};
     });
   }

@@ -252,11 +252,12 @@ class PcmAsrWeb extends PcmAsrPlatform {
     rec.interimResults = true;
     rec.maxAlternatives = 1;
     running.rec = rec;
-    if (running.cancelled)
+    if (running.cancelled) {
       throw PcmAsrException(
         PcmAsrErrorCode.cancelled,
         'cancelled: ${request.id}',
       );
+    }
     final started = DateTime.now();
     var finalText = '';
     var lastInterim = '';

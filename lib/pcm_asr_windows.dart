@@ -265,22 +265,25 @@ class PcmAsrWindows extends PcmAsrPlatform {
   @override
   Future<TranscribeResult> transcribe(TranscribeRequest request) async {
     final lang = languageOf(request.locale);
-    if (lang == null)
+    if (lang == null) {
       throw PcmAsrException(
         PcmAsrErrorCode.unsupportedLocale,
         'whisper has no language for ${request.locale}',
       );
-    if (_running.containsKey(request.id))
+    }
+    if (_running.containsKey(request.id)) {
       throw PcmAsrException(
         PcmAsrErrorCode.engineFailure,
         'request id already running: ${request.id}',
       );
+    }
     final engine = _engine;
-    if (engine == null)
+    if (engine == null) {
       throw const PcmAsrException(
         PcmAsrErrorCode.modelUnavailable,
         'call prepare() first',
       );
+    }
     final flag = WhisperAbortFlag();
     _running[request.id] = flag;
     final started = DateTime.now();
@@ -314,11 +317,12 @@ class PcmAsrWindows extends PcmAsrPlatform {
           'No final result within ${request.timeout.inMilliseconds} ms',
         );
       } on WhisperException catch (e) {
-        if (e.aborted)
+        if (e.aborted) {
           throw PcmAsrException(
             PcmAsrErrorCode.cancelled,
             'cancelled: ${request.id}',
           );
+        }
         throw PcmAsrException(PcmAsrErrorCode.engineFailure, e.message);
       }
       return TranscribeResult(

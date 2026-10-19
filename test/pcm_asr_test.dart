@@ -142,8 +142,9 @@ void main() {
 
     test('timeout cancels the request natively', () async {
       handler = (call) {
-        if (call.method == 'transcribe')
+        if (call.method == 'transcribe') {
           return Future<Object?>.delayed(const Duration(seconds: 5));
+        }
         return const <String, Object?>{};
       };
       await expectLater(
