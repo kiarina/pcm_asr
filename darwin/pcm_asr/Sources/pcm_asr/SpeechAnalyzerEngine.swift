@@ -93,8 +93,11 @@ actor SpeechAnalyzerEngine {
       let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
       let analyzer = SpeechAnalyzer(modules: [transcriber], options: .init(priority: .userInitiated, modelRetention: .processLifetime))
       await analyzerBox.set(analyzer)
+      // A cancel that arrived before the analyzer existed must not start it.
+      if Task.isCancelled { throw EngineError.cancelled("cancelled: \(id)") }
       let input = try await Self.inputBuffer(for: buffer, transcriber: transcriber)
       try await analyzer.prepareToAnalyze(in: input.format)
+      if Task.isCancelled { throw EngineError.cancelled("cancelled: \(id)") }
       let collector = Collector()
       let drain = Task { for try await r in transcriber.results { await collector.add(r) } }
       let stream = AsyncStream<AnalyzerInput> { c in c.yield(AnalyzerInput(buffer: input)); c.finish() }
