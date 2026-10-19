@@ -36,7 +36,8 @@
 - 認証値・録音・会話文・個人環境のパスを公開物に混ぜない。例題の音声は共有素材（`kiarina/test-assets`）だけ
 - Windows の build: `src/CMakeLists.txt` が Vulkan SDK（`VULKAN_SDK`）を見つけると `GGML_VULKAN=ON`（DLL は約 47 MB、無いと CPU のみで 1.6 MB）。
   ggml のシェーダー生成（ExternalProject）は深い build ディレクトリで MSBuild の MAX_PATH を超えて `MSB4184` で落ちるので、
-  短いパス（junction）から build する。CMake のディレクトリ名は `s`・`w` に縮めてある
+  Windows では whisper の取得先と build 先を `%LOCALAPPDATA%\pcm_asr`（`PCM_ASR_WORK`）に置く（0.1.2。`third_party/whisper.cpp` が無ければ
+  CMake の FetchContent が tag と SHA-256 で取る。利用者の手作業は無い）
 
 ## 検証
 

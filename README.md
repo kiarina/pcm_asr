@@ -35,9 +35,11 @@ Platform setup:
 - **Android**: API 33+. No `RECORD_AUDIO`. The on-device recognizer must have the language installed;
   `prepare()` triggers the download and reports progress.
 - **Web**: desktop Chrome/Edge 135+. Nothing to configure; cloud recognition.
-- **Windows**: Visual Studio C++ tools; run `tool/fetch_whisper_cpp.ps1` once; install the Vulkan SDK
-  for the GPU backend and build the app from a short path. The first `prepare()` downloads the model
-  (574 MB for large-v3-turbo q5_0, 488 MB for small).
+- **Windows**: Visual Studio C++ tools (CMake 3.24+ for the source fetch). The first build downloads the pinned
+  whisper.cpp sources and builds them under `%LOCALAPPDATA%\pcm_asr` (`PCM_ASR_WORK` moves it); install the
+  Vulkan SDK (`VULKAN_SDK` set when building) for the GPU backend, `PCM_ASR_VULKAN=0` for a CPU-only DLL.
+  The first `prepare()` downloads the model (574 MB for large-v3-turbo q5_0, 488 MB for small);
+  `support().modelBytes` says how much before you start.
 
 ## Contract
 
@@ -64,7 +66,7 @@ Platform setup:
 | iOS 26+ | same (shared `darwin/` source) | yes | needs hardware that reports `SpeechTranscriber.isAvailable`; no Simulator |
 | Android 13+ (API 33) | `android.speech.SpeechRecognizer` fed by a pipe (`EXTRA_AUDIO_SOURCE`) | when the device has an on-device recognizer | verified on a Pixel 6; PCM is written as fast as the pipe accepts (a lab knob restores real-time pace); a 0.6 s silent tail is appended; `stopListening` is never called |
 | Web | `SpeechRecognition.start(MediaStreamTrack)` | no (cloud, unless the user installed Chrome's language pack) | desktop Chrome/Edge 135+ only; audio goes to the browser vendor's servers |
-| Windows 10/11 x64 | whisper.cpp inside the package (`PcmAsrWindows`, dart:ffi; Vulkan GPU when the DLL was built with the Vulkan SDK and a device exists, else CPU with AVX2) | yes | no OS engine takes external PCM for Japanese, so `prepare()` fetches a pinned ggml model from Hugging Face into the app's support directory. Default model: large-v3-turbo q5_0 (574 MB) on a Vulkan GPU, small (488 MB) on the CPU; override with `PcmAsrWindows.model`. Building needs Visual Studio's C++ tools and `tool/fetch_whisper_cpp.ps1` (or `.sh`) once; install the Vulkan SDK (`VULKAN_SDK` set) for the GPU backend, and build the app from a short path (the shader generator exceeds MAX_PATH from deep build directories) |
+| Windows 10/11 x64 | whisper.cpp inside the package (`PcmAsrWindows`, dart:ffi; Vulkan GPU when built with the Vulkan SDK and a device exists, else CPU with AVX2) | yes | no OS engine takes external PCM for Japanese, so `prepare()` fetches a pinned ggml model from Hugging Face into the app's support directory. Default model: large-v3-turbo q5_0 (574 MB) on a Vulkan GPU, small (488 MB) on the CPU; override with `PcmAsrWindows.model`. whisper.cpp itself is fetched and built by the plugin's CMake (see setup below) |
 
 Measured on the lab's six-segment Japanese fixture (request → final result, median):
 
