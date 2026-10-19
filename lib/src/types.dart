@@ -167,6 +167,7 @@ class RecognitionSupport {
     this.locale,
     this.sampleRates = const [],
     this.needsNetworkForModel = false,
+    this.modelBytes,
     this.reason,
   });
 
@@ -194,6 +195,12 @@ class RecognitionSupport {
 
   /// True when preparing the model needs a network connection.
   final bool needsNetworkForModel;
+
+  /// Size of the download [PcmAsr.prepare] would start, in bytes, when the
+  /// engine knows it (the Windows whisper weights: 488 MB to 1.6 GB). Null
+  /// when the model is installed, or when the OS manages the download and
+  /// does not publish its size (Apple, Android).
+  final int? modelBytes;
 
   /// Why [supported] is false, in a stable machine-readable word.
   final String? reason;

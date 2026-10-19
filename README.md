@@ -46,8 +46,9 @@ Platform setup:
   whisper backend convert other rates, Android and Web require 16 kHz mono).
 - One request, one final result. No partial results, no microphone.
 - `RecognitionSupport` reports separately whether the engine exists, takes
-  external PCM, runs on the device, and whether its model is installed,
-  downloadable or unavailable. `supported == true` only means a request for
+  external PCM, runs on the device, whether its model is installed,
+  downloadable or unavailable, and how large the download would be when the
+  engine knows (`modelBytes`; Windows whisper weights are 488 MB to 1.6 GB). `supported == true` only means a request for
   that locale can succeed once `prepare` has completed.
 - Errors are `PcmAsrException` with a stable `PcmAsrErrorCode`:
   `unsupportedPlatform`, `unsupportedLocale`, `modelUnavailable`,

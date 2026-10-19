@@ -2,7 +2,7 @@
 
 First release.
 
-- One contract on every platform: `support()`, `prepare()` (with progress), `transcribe()` of one finalized
+- One contract on every platform: `support()` (engine, on-device, model state, download size), `prepare()` (with progress), `transcribe()` of one finalized
   PCM16 segment returning the final text with the caller's request id, `cancel()`, `dispose()`.
 - macOS 26+ and iOS 26+: Apple SpeechAnalyzer, on device.
 - Android 13+: `SpeechRecognizer` fed through a pipe (`EXTRA_AUDIO_SOURCE`), on device where the device has an

@@ -36,6 +36,7 @@ class MethodChannelPcmAsr extends PcmAsrPlatform {
         for (final r in (map['sample_rates'] as List?) ?? const []) r as int,
       ],
       needsNetworkForModel: map['needs_network_for_model'] as bool? ?? false,
+      modelBytes: (map['model_bytes'] as num?)?.toInt(),
       reason: map['reason'] as String?,
     );
   }

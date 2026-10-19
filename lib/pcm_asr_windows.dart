@@ -147,6 +147,7 @@ class PcmAsrWindows extends PcmAsrPlatform {
       locale: lang,
       sampleRates: const [16000],
       needsNetworkForModel: !installed,
+      modelBytes: installed ? null : effectiveModel.bytes,
       reason: lang == null ? 'unsupported_locale' : null,
     );
   }
