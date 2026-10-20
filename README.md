@@ -49,6 +49,10 @@ Platform setup:
   engine accepts (16 kHz mono is the reference input; Apple and the Windows
   whisper backend convert other rates, Android and Web require 16 kHz mono).
 - One request, one final result. No partial results, no microphone.
+- One locale per request, chosen by the caller: no platform detects the language. Apple's `SpeechTranscriber`
+  is built for one locale (the macOS 27 SDK has no language-identification module), and the Windows backend
+  rejects `auto` (`unsupportedLocale`) although whisper.cpp itself could detect. To transcribe speech in
+  another language, pass that language's locale.
 - `RecognitionSupport` reports separately whether the engine exists, takes
   external PCM, runs on the device, whether its model is installed,
   downloadable or unavailable, and how large the download would be when the
